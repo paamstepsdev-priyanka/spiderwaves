@@ -1,0 +1,724 @@
+openapi: 3.0.3
+info:
+  title: UCC Master Sync API (Spider consumer)
+  version: "1.0.0"
+  description: |
+    Read-only API that publishes five UCC masters: `customers`, `mapped_customers`, `wastages`, `purities`, `collections`.
+    Base path: `/spider_api/v1`. Every response is JSON: `{ "status": "ok", "data": ..., "meta": {...} }`,
+    or `{ "status": "error", "message": "..." }` for errors.
+
+    ## Quick start
+
+    1. Get a **bearer key** and an **HMAC secret** from a UCC developer (they are shown once, in UCC's API Manager).
+    2. Call `GET /health`, signed as described below. A `200` means your key, signature and clock are all good.
+    3. Load the data once with `GET /masters/snapshot` (one call series per entity), then keep it in sync with
+       `GET /masters/manifest` (see "Keeping a local copy in sync").
+
+    ## Authentication: every request is signed
+
+    Send these four headers on **every** request:
+
+    | Header | Value |
+    |---|---|
+    | `Authorization` | `Bearer <bearer key>` |
+    | `X-Timestamp` | Unix seconds. Must be within 300 seconds of the server clock. |
+    | `X-Nonce` | Unique per request (random hex, at most 64 characters). A repeated nonce is rejected. |
+    | `X-Signature` | `hex(HMAC_SHA256(hmac_secret, string_to_sign))` |
+
+    ```
+    string_to_sign = METHOD + "\n" + PATH_WITH_QUERY + "\n" + X-Timestamp + "\n" + X-Nonce + "\n" + sha256_hex(BODY)
+    ```
+
+    - `BODY` is the raw request body (the empty string for GET).
+    - `PATH_WITH_QUERY` keeps the query keys in the order sent.
+    - `PATH` is relative to the UCC application root (`/spider_api/v1/...`), **not** the hosting sub-folder
+      (for example, not `/ucc/spider_api/...`).
+    - Fixed examples to check an implementation against are in `test_vectors.json`.
+
+    PHP example:
+
+    ```php
+    $method = 'GET';
+    $path   = '/spider_api/v1/masters/manifest';   // include the query string if there is one
+    $body   = '';                                  // the raw JSON for POST
+    $ts     = (string) time();
+    $nonce  = bin2hex(random_bytes(12));
+    $toSign = $method . "\n" . $path . "\n" . $ts . "\n" . $nonce . "\n" . hash('sha256', $body);
+    $sig    = hash_hmac('sha256', $toSign, $hmacSecret);
+    // headers: Authorization: Bearer <key>, X-Timestamp: $ts, X-Nonce: $nonce, X-Signature: $sig
+    ```
+
+    ## Keeping a local copy in sync (no change log, no database triggers)
+
+    `master_version` is a sha256 token of the five entity checksums. Compare it for **equality only**.
+
+    1. `GET /masters/manifest`. If `meta.master_version` equals the stored token, nothing changed.
+    2. For each entity whose `checksum` differs from your local one, page through
+       `GET /masters/manifest?entity=<entity>&keys=1`. It returns `{id, private_key, row_hash}` for every row.
+    3. Compare with your local rows by `private_key`. A missing key or a different `row_hash` means fetch that row with
+       `POST /masters/rows`. A local key that UCC no longer lists should be soft-deleted locally.
+
+    For the first load, use `GET /masters/snapshot` once per entity.
+
+    ## Errors
+
+    | Status | Meaning |
+    |---|---|
+    | `400` | Bad request: a missing or unknown parameter, or a malformed JSON body. |
+    | `401` | Authentication failed: missing headers, unknown key, clock outside the 300 s window, bad signature or reused nonce. |
+    | `403` | The key is valid but the caller's IP address is not on the allow-list. |
+    | `429` | Too many requests (rate limit per client per minute). Back off and retry. |
+
+    ## Webhook (UCC calls you)
+
+    `POST {your_url}/webhooks/ucc/master_changed` with `{"master_version": "<sha256 token>", "sent_at": "<time>"}`,
+    signed the same way as your calls to us, with a **separate** bearer key and secret that you issue to UCC. For the
+    webhook, the signed `PATH` is the **exact path of the webhook URL UCC calls**, including any hosting sub-folder
+    (for example `/webhooks/ucc/master_changed`): verify with the request path exactly as you received it.
+
+    - A body with `"test": true` is a ping from UCC's API Manager: verify it, answer `200`, and do nothing else.
+    - Otherwise queue **one** sync and answer `200` immediately (UCC waits at most 10 seconds). Never sync inside the request.
+    - Any non-2xx answer, timeout or connection failure is retried after 2, 4, 8, 16, 32, 60 and 60 minutes (8 attempts in all).
+    - The webhook is only a hint and not guaranteed. Pulling from the manifest is what keeps you correct, so keep your timed sync.
+    - Full requirements, a verified reference receiver (`webhook_receiver_example.php`) and signed examples
+      (`test_vectors.json`, `webhook` and `webhook_subfolder_test`) are in the Spider developer plan.
+servers:
+  - url: https://{ucc_host}/spider_api/v1
+    variables:
+      ucc_host: { default: ucc.example.com }
+security:
+  - bearerAuth: []
+    hmacSignature: []
+tags:
+  - name: Handshake
+    description: Check that credentials, signature, clock and API version are good. Call this first.
+  - name: Masters
+    description: Read-only master data (customers, mapped customers, wastages, purities, collections).
+paths:
+  /health:
+    get:
+      tags: [Handshake]
+      operationId: health
+      summary: Check your connection
+      description: |
+        Call this first. Reaching a `200` proves your bearer key, HMAC signature and clock are all correct.
+        `server_time` is the server's Unix time: compare it with your own to spot clock drift (the limit is 300 s).
+        `master_version` is the current data version token (see `GET /masters/version`).
+      responses:
+        '200':
+          description: Credentials accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
+              example:
+                status: ok
+                data:
+                  server_time: 1700000000
+                  api_version: "1.0.0"
+                  master_version: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134
+                meta: {}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /masters/version:
+    get:
+      tags: [Masters]
+      operationId: getMasterVersion
+      summary: Current data version token
+      description: |
+        A sha256 token that changes whenever any exposed field of any master row changes, or a row is added or removed.
+        It is **not ordered**: compare it for equality only. It does not change when only a field that is not
+        shared with you changes.
+
+        `GET /masters/manifest` returns the same token in `meta.master_version` together with the per-entity checksums,
+        so you rarely need this endpoint on its own.
+      responses:
+        '200':
+          description: The current token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionResponse' }
+              example:
+                status: ok
+                data:
+                  master_version: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134
+                meta: {}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /masters/snapshot:
+    get:
+      tags: [Masters]
+      operationId: getSnapshot
+      summary: Load all rows of one entity
+      description: |
+        Use this for the **first load** or to recover. Rows come ordered by id. Repeat the call with
+        `after_id=<meta.next_after_id>` until `meta.next_after_id` is `null`. Do this once per entity.
+
+        Only rows with a usable `private_key` are returned. Use the **Examples** drop-down below to see the exact
+        shape of each entity.
+      parameters:
+        - $ref: '#/components/parameters/EntityRequired'
+        - $ref: '#/components/parameters/AfterId'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of rows.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SnapshotResponse' }
+              examples:
+                customers:
+                  summary: entity=customers
+                  value:
+                    status: ok
+                    data:
+                      - customer_id: 1
+                        private_key: 11111111-aaaa-4aaa-8aaa-000000000001
+                        customer_name: Sample Customer
+                        is_active: 1
+                        created_at: "2025-01-02 10:00:00"
+                        updated_at: null
+                      - customer_id: 2
+                        private_key: 11111111-aaaa-4aaa-8aaa-000000000002
+                        customer_name: Zoë & Sons/Co
+                        is_active: 0
+                        created_at: "2025-03-04 11:30:15"
+                        updated_at: "2025-06-07 08:00:00"
+                    meta:
+                      next_after_id: null
+                mapped_customers:
+                  summary: entity=mapped_customers
+                  value:
+                    status: ok
+                    data:
+                      - mapped_customer_id: 10
+                        private_key: 22222222-bbbb-4bbb-8bbb-000000000010
+                        mapped_customer_name: Sample Mapped 22K
+                        customer_id: 1
+                        collection_id: 5
+                        wastage_id: 3
+                        purity_id: 2
+                        stone_type: CZ
+                        gold_type: Yellow
+                        is_active: 1
+                        created_at: "2025-02-01 09:00:00"
+                        updated_at: null
+                    meta:
+                      next_after_id: null
+                wastages:
+                  summary: entity=wastages (no timestamps)
+                  value:
+                    status: ok
+                    data:
+                      - wastage_id: 3
+                        private_key: 33333333-cccc-4ccc-8ccc-000000000003
+                        wastage: "12.50"
+                        is_active: 1
+                    meta:
+                      next_after_id: null
+                purities:
+                  summary: entity=purities
+                  value:
+                    status: ok
+                    data:
+                      - purity_id: 2
+                        private_key: 44444444-dddd-4ddd-8ddd-000000000002
+                        purity: "91.60"
+                        gold_multiplier: "0.916"
+                        is_active: 1
+                        created_at: "2025-01-01 00:00:00"
+                        updated_at: null
+                      - purity_id: 3
+                        private_key: 44444444-dddd-4ddd-8ddd-000000000003
+                        purity: "75.00"
+                        gold_multiplier: null
+                        is_active: 1
+                        created_at: null
+                        updated_at: null
+                    meta:
+                      next_after_id: null
+                collections:
+                  summary: entity=collections
+                  value:
+                    status: ok
+                    data:
+                      - collection_id: 5
+                        private_key: 55555555-eeee-4eee-8eee-000000000005
+                        parent_id: 0
+                        collection_name: Temple/Classic
+                        shortcode: TC
+                        is_active: 1
+                        created_at: "2024-12-01 00:00:00"
+                        updated_at: null
+                    meta:
+                      next_after_id: null
+                more_pages:
+                  summary: A page that is not the last (limit=2)
+                  value:
+                    status: ok
+                    data:
+                      - wastage_id: 1
+                        private_key: 33333333-cccc-4ccc-8ccc-000000000001
+                        wastage: "10.00"
+                        is_active: 1
+                      - wastage_id: 2
+                        private_key: 33333333-cccc-4ccc-8ccc-000000000002
+                        wastage: "11.00"
+                        is_active: 1
+                    meta:
+                      next_after_id: 2
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /masters/manifest:
+    get:
+      tags: [Masters]
+      operationId: getManifest
+      summary: Check what changed, or list keys and hashes
+      description: |
+        The call that keeps your copy in sync. It has two modes:
+
+        **1. Summary** (no `entity`): per entity `count`, `checksum` and `unsyncable`, plus `meta.master_version`.
+        If the token equals the one you stored, nothing changed. If one entity's `checksum` differs from the checksum
+        of your local rows, that entity changed.
+
+        **2. Key list** (`entity=<entity>&keys=1`): `{id, private_key, row_hash}` for every row of that entity, paged by
+        `after_id` like the snapshot. Compare with your local rows by `private_key`; fetch missing or different rows with
+        `POST /masters/rows`.
+
+        `unsyncable` counts rows UCC cannot publish (blank or duplicate `private_key`). They are in no response and have to be fixed in UCC.
+      parameters:
+        - $ref: '#/components/parameters/EntityOptional'
+        - $ref: '#/components/parameters/Keys'
+        - $ref: '#/components/parameters/AfterId'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: The summary, or a page of the key list.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ManifestSummaryResponse'
+                  - $ref: '#/components/schemas/ManifestKeysResponse'
+              examples:
+                summary:
+                  summary: Summary (no entity)
+                  value:
+                    status: ok
+                    data:
+                      customers:
+                        count: 2
+                        checksum: 932a477b1b4719e11a4b8090873e747491ed6038e4dd249a6610ba80214361fb
+                        unsyncable: 0
+                      mapped_customers:
+                        count: 1
+                        checksum: 2037056d7c0319074a4abaa8a22bbf8c4ed2ade48cc305946c3668cb90aa1658
+                        unsyncable: 0
+                      wastages:
+                        count: 1
+                        checksum: f3351dc9589ffb0f43d16a0636f572356565f40bdd19e39313562f308500f1b8
+                        unsyncable: 0
+                      purities:
+                        count: 2
+                        checksum: a575400e25bd863e16f33644fd8327f4b99c2413db3d5b09f971bf17ae4484d3
+                        unsyncable: 0
+                      collections:
+                        count: 1
+                        checksum: 50f0b6514f92a77742bea50c70188ceeaa37f37762256cdbb7e5ebad2cd25250
+                        unsyncable: 0
+                    meta:
+                      master_version: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134
+                keys:
+                  summary: Key list (entity=customers&keys=1)
+                  value:
+                    status: ok
+                    data:
+                      - id: 1
+                        private_key: 11111111-aaaa-4aaa-8aaa-000000000001
+                        row_hash: 9380eb6eca86b72e0b2f0ae9dffd744800a296f8fb88803fbcf3ab148ffef4bb
+                      - id: 2
+                        private_key: 11111111-aaaa-4aaa-8aaa-000000000002
+                        row_hash: f3d6181694516b74c5cd0151504eb1fd6289ac1209df51c9e1b30705a232238a
+                    meta:
+                      next_after_id: null
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /masters/rows:
+    post:
+      tags: [Masters]
+      operationId: getRowsByKey
+      summary: Fetch specific rows by private_key
+      description: |
+        Returns the current rows for up to 200 `private_keys` of one entity. Use it to fetch the rows the manifest told
+        you are missing or different. Keys that are not found are listed in `meta.not_found` (for example, a row that
+        was deleted in the meantime): treat those as deleted.
+
+        The body is signed like any other request: the `X-Signature` covers the **exact raw bytes** you send.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RowsRequest' }
+            examples:
+              customers:
+                summary: Two customers
+                value:
+                  entity: customers
+                  private_keys:
+                    - 11111111-aaaa-4aaa-8aaa-000000000001
+                    - 11111111-aaaa-4aaa-8aaa-000000000002
+              one_missing:
+                summary: One key that does not exist
+                value:
+                  entity: wastages
+                  private_keys:
+                    - 33333333-cccc-4ccc-8ccc-000000000003
+                    - 33333333-cccc-4ccc-8ccc-0000000000ff
+      responses:
+        '200':
+          description: The rows that exist, and the keys that were not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RowsResponse' }
+              examples:
+                all_found:
+                  summary: All keys found
+                  value:
+                    status: ok
+                    data:
+                      - customer_id: 1
+                        private_key: 11111111-aaaa-4aaa-8aaa-000000000001
+                        customer_name: Sample Customer
+                        is_active: 1
+                        created_at: "2025-01-02 10:00:00"
+                        updated_at: null
+                    meta:
+                      not_found: []
+                some_missing:
+                  summary: One key not found
+                  value:
+                    status: ok
+                    data:
+                      - wastage_id: 3
+                        private_key: 33333333-cccc-4ccc-8ccc-000000000003
+                        wastage: "12.50"
+                        is_active: 1
+                    meta:
+                      not_found:
+                        - 33333333-cccc-4ccc-8ccc-0000000000ff
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    hmacSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: Also required headers X-Timestamp (unix seconds) and X-Nonce (unique per request). See the guide above.
+  parameters:
+    EntityRequired:
+      name: entity
+      in: query
+      required: true
+      description: Which master to read.
+      schema: { $ref: '#/components/schemas/EntityName' }
+      example: customers
+    EntityOptional:
+      name: entity
+      in: query
+      required: false
+      description: Leave empty for the summary of all five entities. Set it together with `keys=1` for one entity's key list.
+      schema: { $ref: '#/components/schemas/EntityName' }
+    Keys:
+      name: keys
+      in: query
+      required: false
+      description: Pass `1` (with `entity`) to list `{id, private_key, row_hash}` for every row of that entity.
+      schema: { type: integer, enum: [1] }
+    AfterId:
+      name: after_id
+      in: query
+      required: false
+      description: Return rows with an id greater than this. Start at `0`, then pass the previous page's `meta.next_after_id`.
+      schema: { type: integer, minimum: 0, default: 0 }
+      example: 0
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Rows per page (default 200, maximum 500).
+      schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      example: 200
+  responses:
+    BadRequest:
+      description: The request is malformed (missing or unknown parameter, or an invalid JSON body).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            entity_missing:
+              summary: Snapshot without entity
+              value:
+                status: error
+                message: "entity is required: customers, mapped_customers, wastages, purities, collections"
+            unknown_entity:
+              summary: Unknown entity
+              value:
+                status: error
+                message: Unknown entity
+            keys_needs_entity:
+              summary: keys=1 without entity
+              value:
+                status: error
+                message: keys=1 is required together with entity
+            bad_json:
+              summary: Body is not a valid JSON object
+              value:
+                status: error
+                message: A valid JSON object body is required
+            rows_fields:
+              summary: Body is missing entity or private_keys
+              value:
+                status: error
+                message: entity and private_keys[] are required
+            too_many_keys:
+              summary: More than 200 keys
+              value:
+                status: error
+                message: At most 200 private_keys per request
+    Unauthorized:
+      description: Authentication failed. The message says why.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            missing_headers:
+              summary: A required header is missing
+              value:
+                status: error
+                message: Missing authentication headers
+            malformed_headers:
+              summary: Timestamp or nonce is malformed
+              value:
+                status: error
+                message: Malformed authentication headers
+            invalid_credentials:
+              summary: Unknown, inactive or wrong-API key
+              value:
+                status: error
+                message: Invalid credentials
+            clock:
+              summary: Your clock is more than 300 s off
+              value:
+                status: error
+                message: Timestamp outside allowed window
+            bad_signature:
+              summary: The signature does not match
+              value:
+                status: error
+                message: Invalid signature
+            nonce_reused:
+              summary: This nonce was already used
+              value:
+                status: error
+                message: Nonce already used
+    Forbidden:
+      description: The key is valid, but this IP address is not allowed to use it.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            status: error
+            message: IP not allowed
+    TooManyRequests:
+      description: Rate limit exceeded for this client. Wait a minute and retry.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            status: error
+            message: Rate limit exceeded
+  schemas:
+    EntityName:
+      type: string
+      enum: [customers, mapped_customers, wastages, purities, collections]
+      description: The five published masters.
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status: { type: string, enum: [error] }
+        message: { type: string, description: A short human-readable reason. }
+    # ----- Row shapes. Key ORDER below is the canonical order used for row_hash. -----
+    # ids and is_active are JSON integers. Decimals are JSON strings with fixed places.
+    # Dates are "Y-m-d H:i:s" or null.
+    Customer:
+      type: object
+      required: [customer_id, private_key, customer_name, is_active, created_at, updated_at]
+      properties:
+        customer_id: { type: integer, example: 1 }
+        private_key: { type: string, maxLength: 50, description: Stable identity of the row. Never changes once issued., example: 11111111-aaaa-4aaa-8aaa-000000000001 }
+        customer_name: { type: string, example: Sample Customer }
+        is_active: { type: integer, enum: [0, 1], description: "1 = active, 0 = inactive. An inactive row is still published; it is not a deletion." }
+        created_at: { type: string, nullable: true, example: "2025-01-02 10:00:00" }
+        updated_at: { type: string, nullable: true, example: null }
+    MappedCustomer:
+      type: object
+      required: [mapped_customer_id, private_key, mapped_customer_name, customer_id, collection_id, wastage_id, purity_id, stone_type, gold_type, is_active, created_at, updated_at]
+      properties:
+        mapped_customer_id: { type: integer, example: 10 }
+        private_key: { type: string, example: 22222222-bbbb-4bbb-8bbb-000000000010 }
+        mapped_customer_name: { type: string, example: Sample Mapped 22K }
+        customer_id: { type: integer, description: Id of the customer this belongs to., example: 1 }
+        collection_id: { type: integer, description: Id of the collection., example: 5 }
+        wastage_id: { type: integer, description: Id of the wastage., example: 3 }
+        purity_id: { type: integer, description: Id of the purity., example: 2 }
+        stone_type: { type: string, example: CZ }
+        gold_type: { type: string, example: Yellow }
+        is_active: { type: integer, enum: [0, 1] }
+        created_at: { type: string, nullable: true, example: "2025-02-01 09:00:00" }
+        updated_at: { type: string, nullable: true, example: null }
+    Wastage:
+      type: object
+      description: No timestamps (the source table has none).
+      required: [wastage_id, private_key, wastage, is_active]
+      properties:
+        wastage_id: { type: integer, example: 3 }
+        private_key: { type: string, example: 33333333-cccc-4ccc-8ccc-000000000003 }
+        wastage: { type: string, description: Percentage with 2 decimal places., example: "12.50" }
+        is_active: { type: integer, enum: [0, 1] }
+    Purity:
+      type: object
+      required: [purity_id, private_key, purity, gold_multiplier, is_active, created_at, updated_at]
+      properties:
+        purity_id: { type: integer, example: 2 }
+        private_key: { type: string, example: 44444444-dddd-4ddd-8ddd-000000000002 }
+        purity: { type: string, description: 2 decimal places., example: "91.60" }
+        gold_multiplier: { type: string, nullable: true, description: "3 decimal places, or null.", example: "0.916" }
+        is_active: { type: integer, enum: [0, 1] }
+        created_at: { type: string, nullable: true, example: "2025-01-01 00:00:00" }
+        updated_at: { type: string, nullable: true, example: null }
+    Collection:
+      type: object
+      required: [collection_id, private_key, parent_id, collection_name, shortcode, is_active, created_at, updated_at]
+      properties:
+        collection_id: { type: integer, example: 5 }
+        private_key: { type: string, example: 55555555-eeee-4eee-8eee-000000000005 }
+        parent_id: { type: integer, description: Id of the parent collection or 0 for a top-level one., example: 0 }
+        collection_name: { type: string, nullable: true, example: Temple/Classic }
+        shortcode: { type: string, nullable: true, example: TC }
+        is_active: { type: integer, enum: [0, 1] }
+        created_at: { type: string, nullable: true, example: "2024-12-01 00:00:00" }
+        updated_at: { type: string, nullable: true, example: null }
+    AnyRow:
+      description: A row of the entity you asked for. See the Examples drop-down for the exact shape of each.
+      oneOf:
+        - { $ref: '#/components/schemas/Customer' }
+        - { $ref: '#/components/schemas/MappedCustomer' }
+        - { $ref: '#/components/schemas/Wastage' }
+        - { $ref: '#/components/schemas/Purity' }
+        - { $ref: '#/components/schemas/Collection' }
+    ManifestEntity:
+      type: object
+      properties:
+        count: { type: integer, description: Number of publishable rows., example: 2 }
+        checksum: { type: string, description: "sha256 hex over the rows' id, private_key and row_hash. See test_vectors.json.", example: 932a477b1b4719e11a4b8090873e747491ed6038e4dd249a6610ba80214361fb }
+        unsyncable: { type: integer, description: "Rows with a blank or duplicate private_key. They are excluded from every response.", example: 0 }
+    ManifestKey:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        private_key: { type: string, example: 11111111-aaaa-4aaa-8aaa-000000000001 }
+        row_hash: { type: string, description: "sha256 hex of the canonical JSON of the row. See test_vectors.json.", example: 9380eb6eca86b72e0b2f0ae9dffd744800a296f8fb88803fbcf3ab148ffef4bb }
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: object
+          properties:
+            server_time: { type: integer, description: Server Unix time in seconds., example: 1700000000 }
+            api_version: { type: string, example: "1.0.0" }
+            master_version: { type: string, description: Current data version token (equality only)., example: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134 }
+        meta: { type: object }
+    VersionResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: object
+          properties:
+            master_version: { type: string, description: "sha256 token; compare for equality only.", example: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134 }
+        meta: { type: object }
+    SnapshotResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AnyRow' }
+        meta:
+          type: object
+          properties:
+            next_after_id: { type: integer, nullable: true, description: "Pass this as after_id for the next page. null when this was the last page.", example: null }
+    ManifestSummaryResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: object
+          properties:
+            customers: { $ref: '#/components/schemas/ManifestEntity' }
+            mapped_customers: { $ref: '#/components/schemas/ManifestEntity' }
+            wastages: { $ref: '#/components/schemas/ManifestEntity' }
+            purities: { $ref: '#/components/schemas/ManifestEntity' }
+            collections: { $ref: '#/components/schemas/ManifestEntity' }
+        meta:
+          type: object
+          properties:
+            master_version: { type: string, description: "sha256 token; compare for equality only.", example: ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134 }
+    ManifestKeysResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ManifestKey' }
+        meta:
+          type: object
+          properties:
+            next_after_id: { type: integer, nullable: true, example: null }
+    RowsRequest:
+      type: object
+      required: [entity, private_keys]
+      properties:
+        entity: { $ref: '#/components/schemas/EntityName' }
+        private_keys:
+          type: array
+          maxItems: 200
+          items: { type: string }
+          description: Up to 200 private_keys of that entity.
+    RowsResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AnyRow' }
+        meta:
+          type: object
+          properties:
+            not_found:
+              type: array
+              items: { type: string }
+              description: Requested keys that do not exist (any more). Treat them as deleted.

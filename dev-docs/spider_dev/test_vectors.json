@@ -1,0 +1,218 @@
+{
+    "description": "Shared test vectors. Both sides must reproduce every expected value exactly. Generated with PHP json_encode(JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) and hash(sha256).",
+    "row_hash": [
+        {
+            "entity": "customers",
+            "row": {
+                "customer_id": 1,
+                "private_key": "11111111-aaaa-4aaa-8aaa-000000000001",
+                "customer_name": "Sample Customer",
+                "is_active": 1,
+                "created_at": "2025-01-02 10:00:00",
+                "updated_at": null
+            },
+            "canonical_json": "{\"customer_id\":1,\"private_key\":\"11111111-aaaa-4aaa-8aaa-000000000001\",\"customer_name\":\"Sample Customer\",\"is_active\":1,\"created_at\":\"2025-01-02 10:00:00\",\"updated_at\":null}",
+            "expected_row_hash": "9380eb6eca86b72e0b2f0ae9dffd744800a296f8fb88803fbcf3ab148ffef4bb"
+        },
+        {
+            "entity": "customers",
+            "row": {
+                "customer_id": 2,
+                "private_key": "11111111-aaaa-4aaa-8aaa-000000000002",
+                "customer_name": "Zoë & Sons/Co",
+                "is_active": 0,
+                "created_at": "2025-03-04 11:30:15",
+                "updated_at": "2025-06-07 08:00:00"
+            },
+            "canonical_json": "{\"customer_id\":2,\"private_key\":\"11111111-aaaa-4aaa-8aaa-000000000002\",\"customer_name\":\"Zoë & Sons/Co\",\"is_active\":0,\"created_at\":\"2025-03-04 11:30:15\",\"updated_at\":\"2025-06-07 08:00:00\"}",
+            "expected_row_hash": "f3d6181694516b74c5cd0151504eb1fd6289ac1209df51c9e1b30705a232238a"
+        },
+        {
+            "entity": "mapped_customers",
+            "row": {
+                "mapped_customer_id": 10,
+                "private_key": "22222222-bbbb-4bbb-8bbb-000000000010",
+                "mapped_customer_name": "Sample Mapped 22K",
+                "customer_id": 1,
+                "collection_id": 5,
+                "wastage_id": 3,
+                "purity_id": 2,
+                "stone_type": "CZ",
+                "gold_type": "Yellow",
+                "is_active": 1,
+                "created_at": "2025-02-01 09:00:00",
+                "updated_at": null
+            },
+            "canonical_json": "{\"mapped_customer_id\":10,\"private_key\":\"22222222-bbbb-4bbb-8bbb-000000000010\",\"mapped_customer_name\":\"Sample Mapped 22K\",\"customer_id\":1,\"collection_id\":5,\"wastage_id\":3,\"purity_id\":2,\"stone_type\":\"CZ\",\"gold_type\":\"Yellow\",\"is_active\":1,\"created_at\":\"2025-02-01 09:00:00\",\"updated_at\":null}",
+            "expected_row_hash": "3d0349e2fb94b8702aef3a6678848831579ccc6388ad1e6122f81db847997b3c"
+        },
+        {
+            "entity": "wastages",
+            "row": {
+                "wastage_id": 3,
+                "private_key": "33333333-cccc-4ccc-8ccc-000000000003",
+                "wastage": "12.50",
+                "is_active": 1
+            },
+            "canonical_json": "{\"wastage_id\":3,\"private_key\":\"33333333-cccc-4ccc-8ccc-000000000003\",\"wastage\":\"12.50\",\"is_active\":1}",
+            "expected_row_hash": "d5364c4cd9982df25d0ad8f0729725a82bb8486bd0a7061c99f8501a8c5ceea7"
+        },
+        {
+            "entity": "purities",
+            "row": {
+                "purity_id": 2,
+                "private_key": "44444444-dddd-4ddd-8ddd-000000000002",
+                "purity": "91.60",
+                "gold_multiplier": "0.916",
+                "is_active": 1,
+                "created_at": "2025-01-01 00:00:00",
+                "updated_at": null
+            },
+            "canonical_json": "{\"purity_id\":2,\"private_key\":\"44444444-dddd-4ddd-8ddd-000000000002\",\"purity\":\"91.60\",\"gold_multiplier\":\"0.916\",\"is_active\":1,\"created_at\":\"2025-01-01 00:00:00\",\"updated_at\":null}",
+            "expected_row_hash": "f21c5f8c3eaa0b564df12932ae72867d80aabab56d4eeef726257103fb38b3d7"
+        },
+        {
+            "entity": "purities",
+            "row": {
+                "purity_id": 3,
+                "private_key": "44444444-dddd-4ddd-8ddd-000000000003",
+                "purity": "75.00",
+                "gold_multiplier": null,
+                "is_active": 1,
+                "created_at": null,
+                "updated_at": null
+            },
+            "canonical_json": "{\"purity_id\":3,\"private_key\":\"44444444-dddd-4ddd-8ddd-000000000003\",\"purity\":\"75.00\",\"gold_multiplier\":null,\"is_active\":1,\"created_at\":null,\"updated_at\":null}",
+            "expected_row_hash": "447f4f354155effa723143b355df4beb9f0430854a823af23a841c1558a70ad6"
+        },
+        {
+            "entity": "collections",
+            "row": {
+                "collection_id": 5,
+                "private_key": "55555555-eeee-4eee-8eee-000000000005",
+                "parent_id": 0,
+                "collection_name": "Temple/Classic",
+                "shortcode": "TC",
+                "is_active": 1,
+                "created_at": "2024-12-01 00:00:00",
+                "updated_at": null
+            },
+            "canonical_json": "{\"collection_id\":5,\"private_key\":\"55555555-eeee-4eee-8eee-000000000005\",\"parent_id\":0,\"collection_name\":\"Temple/Classic\",\"shortcode\":\"TC\",\"is_active\":1,\"created_at\":\"2024-12-01 00:00:00\",\"updated_at\":null}",
+            "expected_row_hash": "88ae213cdf434ea3b6d4b674c57f2d37c1d65cbc1b8f5a05b55f18d8b566d2b4"
+        }
+    ],
+    "manifest_checksum": [
+        {
+            "entity": "customers",
+            "lines": "1:11111111-aaaa-4aaa-8aaa-000000000001:9380eb6eca86b72e0b2f0ae9dffd744800a296f8fb88803fbcf3ab148ffef4bb\n2:11111111-aaaa-4aaa-8aaa-000000000002:f3d6181694516b74c5cd0151504eb1fd6289ac1209df51c9e1b30705a232238a\n",
+            "expected_checksum": "932a477b1b4719e11a4b8090873e747491ed6038e4dd249a6610ba80214361fb",
+            "count": 2
+        },
+        {
+            "entity": "mapped_customers",
+            "lines": "10:22222222-bbbb-4bbb-8bbb-000000000010:3d0349e2fb94b8702aef3a6678848831579ccc6388ad1e6122f81db847997b3c\n",
+            "expected_checksum": "2037056d7c0319074a4abaa8a22bbf8c4ed2ade48cc305946c3668cb90aa1658",
+            "count": 1
+        },
+        {
+            "entity": "wastages",
+            "lines": "3:33333333-cccc-4ccc-8ccc-000000000003:d5364c4cd9982df25d0ad8f0729725a82bb8486bd0a7061c99f8501a8c5ceea7\n",
+            "expected_checksum": "f3351dc9589ffb0f43d16a0636f572356565f40bdd19e39313562f308500f1b8",
+            "count": 1
+        },
+        {
+            "entity": "purities",
+            "lines": "2:44444444-dddd-4ddd-8ddd-000000000002:f21c5f8c3eaa0b564df12932ae72867d80aabab56d4eeef726257103fb38b3d7\n3:44444444-dddd-4ddd-8ddd-000000000003:447f4f354155effa723143b355df4beb9f0430854a823af23a841c1558a70ad6\n",
+            "expected_checksum": "a575400e25bd863e16f33644fd8327f4b99c2413db3d5b09f971bf17ae4484d3",
+            "count": 2
+        },
+        {
+            "entity": "collections",
+            "lines": "5:55555555-eeee-4eee-8eee-000000000005:88ae213cdf434ea3b6d4b674c57f2d37c1d65cbc1b8f5a05b55f18d8b566d2b4\n",
+            "expected_checksum": "50f0b6514f92a77742bea50c70188ceeaa37f37762256cdbb7e5ebad2cd25250",
+            "count": 1
+        }
+    ],
+    "signing": [
+        {
+            "method": "GET",
+            "path": "/spider_api/v1/masters/version",
+            "timestamp": "1700000000",
+            "nonce": "nonce-0001",
+            "body": "",
+            "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "string_to_sign": "GET\n/spider_api/v1/masters/version\n1700000000\nnonce-0001\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "expected_signature": "7bd4864fdd3c90eb475e57ae895ffbe16c8a7c5fa4d3f68458913ee650f7912b"
+        },
+        {
+            "method": "POST",
+            "path": "/spider_api/v1/masters/rows",
+            "timestamp": "1700000123",
+            "nonce": "nonce-0002",
+            "body": "{\"entity\":\"customers\",\"private_keys\":[\"11111111-aaaa-4aaa-8aaa-000000000001\"]}",
+            "body_sha256": "c42908e013afce8ff5c88d8bc12ae26c2dca43877ea05c146b45b89694ab0d96",
+            "string_to_sign": "POST\n/spider_api/v1/masters/rows\n1700000123\nnonce-0002\nc42908e013afce8ff5c88d8bc12ae26c2dca43877ea05c146b45b89694ab0d96",
+            "expected_signature": "c34976d94cdef3ae29eb69f50f35c1b09295ed295d2780ae3c29b078c23146cf"
+        },
+        {
+            "method": "GET",
+            "path": "/spider_api/v1/masters/manifest?entity=customers&keys=1&after_id=0&limit=200",
+            "timestamp": "1700000456",
+            "nonce": "nonce-0003",
+            "body": "",
+            "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "string_to_sign": "GET\n/spider_api/v1/masters/manifest?entity=customers&keys=1&after_id=0&limit=200\n1700000456\nnonce-0003\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "expected_signature": "29bcac0711186609ec1745132a3237a8daa3531602a055e0e04e4f11aa8ff184"
+        }
+    ],
+    "signing_secret": "test_hmac_secret_do_not_use_in_prod",
+    "master_version": [
+        {
+            "rule": "sha256 hex of \"{entity}:{checksum}\\n\" for the five entities in this fixed order; compare for equality only",
+            "entity_order": [
+                "customers",
+                "mapped_customers",
+                "wastages",
+                "purities",
+                "collections"
+            ],
+            "checksums": {
+                "customers": "932a477b1b4719e11a4b8090873e747491ed6038e4dd249a6610ba80214361fb",
+                "mapped_customers": "2037056d7c0319074a4abaa8a22bbf8c4ed2ade48cc305946c3668cb90aa1658",
+                "wastages": "f3351dc9589ffb0f43d16a0636f572356565f40bdd19e39313562f308500f1b8",
+                "purities": "a575400e25bd863e16f33644fd8327f4b99c2413db3d5b09f971bf17ae4484d3",
+                "collections": "50f0b6514f92a77742bea50c70188ceeaa37f37762256cdbb7e5ebad2cd25250"
+            },
+            "lines": "customers:932a477b1b4719e11a4b8090873e747491ed6038e4dd249a6610ba80214361fb\nmapped_customers:2037056d7c0319074a4abaa8a22bbf8c4ed2ade48cc305946c3668cb90aa1658\nwastages:f3351dc9589ffb0f43d16a0636f572356565f40bdd19e39313562f308500f1b8\npurities:a575400e25bd863e16f33644fd8327f4b99c2413db3d5b09f971bf17ae4484d3\ncollections:50f0b6514f92a77742bea50c70188ceeaa37f37762256cdbb7e5ebad2cd25250\n",
+            "expected_master_version": "ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134"
+        }
+    ],
+    "webhook": {
+        "note": "A normal change notification. PATH is the exact path of the URL UCC calls.",
+        "url": "https://spider.example.com/webhooks/ucc/master_changed",
+        "bearer": "whk_example_bearer_do_not_use",
+        "secret": "whk_example_secret_do_not_use_in_production_0123456789abcdef",
+        "method": "POST",
+        "path": "/webhooks/ucc/master_changed",
+        "timestamp": "1700000500",
+        "nonce": "webhook-nonce-0001",
+        "body": "{\"master_version\":\"ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134\",\"sent_at\":\"2023-11-14T22:21:40+00:00\"}",
+        "body_sha256": "6f7f10335887ecbf68aa240a6c2e76983bd33b26ed0675afad5276747f42748f",
+        "string_to_sign": "POST\n/webhooks/ucc/master_changed\n1700000500\nwebhook-nonce-0001\n6f7f10335887ecbf68aa240a6c2e76983bd33b26ed0675afad5276747f42748f",
+        "expected_signature": "8807a5e78ded52a4144837bcad9d87e0615012f917f103812627f62eff2f9398"
+    },
+    "webhook_subfolder_test": {
+        "note": "A test ping (test:true) to an app hosted in a sub-folder. PATH includes the sub-folder /spider.",
+        "url": "https://example.com/spider/webhooks/ucc/master_changed",
+        "bearer": "whk_example_bearer_do_not_use",
+        "secret": "whk_example_secret_do_not_use_in_production_0123456789abcdef",
+        "method": "POST",
+        "path": "/spider/webhooks/ucc/master_changed",
+        "timestamp": "1700000600",
+        "nonce": "webhook-nonce-0002",
+        "body": "{\"master_version\":\"ee1f3ec382b3409bd35170893f7ddb60fef272766974817fd2011bb711ff6134\",\"sent_at\":\"2023-11-14T22:23:20+00:00\",\"test\":true}",
+        "body_sha256": "b95ca9f2864789caa6113ec80fc85d327a8c486960fe0ebcfabb9bbfc454bb98",
+        "string_to_sign": "POST\n/spider/webhooks/ucc/master_changed\n1700000600\nwebhook-nonce-0002\nb95ca9f2864789caa6113ec80fc85d327a8c486960fe0ebcfabb9bbfc454bb98",
+        "expected_signature": "c60c83ba824c80e10860727792746761aa1fa1e976e99d124f6a5c8fbac91118"
+    }
+}

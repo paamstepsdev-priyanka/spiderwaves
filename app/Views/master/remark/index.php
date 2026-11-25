@@ -1,0 +1,179 @@
+<?= $this->extend('layouts/default') ?>
+
+<?= $this->section('title') ?>Remark Master - SpiderWaves<?= $this->endSection() ?>
+<?= $this->section('breadcrumb') ?>Remark Master<?= $this->endSection() ?>
+
+<?= $this->section('content') ?>
+<!-- Page Header -->
+<div class="sw-page-header">
+    <div class="sw-page-title-box">
+        <h1>Remark Master</h1>
+    </div>
+    <div class="sw-page-actions">
+        <a href="<?= base_url('master/remark/create') ?>" class="sw-btn-primary" style="padding: 6px 14px; font-size: 12px; font-weight: 700;">
+            <i class="icon-plus2" style="font-size: 11px;"></i> NEW
+        </a>
+    </div>
+</div>
+
+<!-- Flash Alerts -->
+<?php if (session()->getFlashdata('success')): ?>
+    <div class="sw-alert sw-alert-success">
+        <i class="icon-checkmark-circle"></i>
+        <span><?= esc(session()->getFlashdata('success')) ?></span>
+    </div>
+<?php endif; ?>
+
+<?php if (session()->getFlashdata('error')): ?>
+    <div class="sw-alert sw-alert-danger">
+        <i class="icon-alert"></i>
+        <span><?= esc(session()->getFlashdata('error')) ?></span>
+    </div>
+<?php endif; ?>
+
+<!-- Search & Filter Toolbar -->
+<div class="sw-filter-card">
+    <form method="get" action="<?= base_url('master/remark') ?>" id="remarkFilterForm">
+        <div class="sw-filter-grid">
+            <!-- Search Keyword Input -->
+            <div class="sw-search-group" style="flex: 2;">
+                <input type="text" name="q" class="sw-input" style="padding-left: 14px;" placeholder="Search by remark description..." value="<?= esc($search ?? '') ?>" autocomplete="off">
+            </div>
+
+            <!-- Status Dropdown -->
+            <div style="flex: 1; min-width: 120px;">
+                <select name="status" class="select2" onchange="document.getElementById('remarkFilterForm').submit()" style="width: 100%;">
+                    <option value="">All Statuses</option>
+                    <option value="1" <?= ($status === '1') ? 'selected' : '' ?>>Active</option>
+                    <option value="0" <?= ($status === '0') ? 'selected' : '' ?>>Inactive</option>
+                </select>
+            </div>
+
+            <!-- Action Buttons -->
+            <button type="submit" class="sw-btn-secondary" style="padding: 0 16px;">
+                <i class="icon-filter4"></i>
+                <span>Filter</span>
+            </button>
+
+            <?php if (!empty($search) || ($status !== null && $status !== '')): ?>
+                <a href="<?= base_url('master/remark') ?>" class="sw-btn-secondary" title="Reset Filters" style="color: #64748b; padding: 0 12px;">
+                    <i class="icon-cross2"></i>
+                </a>
+            <?php endif; ?>
+        </div>
+    </form>
+</div>
+
+<!-- Remark Data Table Card -->
+<div class="sw-table-card">
+    <div class="sw-table-header">
+        <div class="sw-table-title">Transaction Remark Records</div>
+        <div class="sw-table-info">
+            Showing <?= count($remarks) ?> records
+        </div>
+    </div>
+
+    <div class="sw-table-responsive">
+        <table class="sw-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%; text-align: center;">S.No.</th>
+                    <th style="width: 60%;">Remark</th>
+                    <th style="width: 16%; text-align: center;">Status</th>
+                    <th style="width: 16%; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!empty($remarks)): ?>
+                    <?php
+                        $currentPage = $pager->getCurrentPage() ?: 1;
+                        $perPage     = $pager->getPerPage() ?: 10;
+                        $index       = ($currentPage - 1) * $perPage + 1;
+                    ?>
+                    <?php foreach ($remarks as $obj): ?>
+                        <tr>
+                            <!-- S.No -->
+                            <td style="text-align: center; color: var(--sw-text-muted); font-size: 12.5px;">
+                                <?= $index++; ?>
+                            </td>
+
+                            <!-- Remark -->
+                            <td>
+                                <div style="font-size: 13.5px; font-weight: 600; color: var(--sw-text-main); line-height: 1.25;">
+                                    <?= esc($obj['remark']) ?>
+                                </div>
+                            </td>
+
+                            <!-- Status Pill Badge -->
+                            <td style="text-align: center;">
+                                <?php if ($obj['status'] === '1'): ?>
+                                    <span class="sw-pill-badge active">
+                                        <span class="sw-badge-dot"></span> Active
+                                    </span>
+                                <?php else: ?>
+                                    <span class="sw-pill-badge inactive">
+                                        <span class="sw-badge-dot"></span> Inactive
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Actions -->
+                            <td style="text-align: center;">
+                                <div class="sw-action-buttons">
+                                    <!-- Edit Remark -->
+                                    <a href="<?= base_url('master/remark/edit/' . $obj['remark_id']) ?>" class="sw-icon-btn edit" title="Edit Remark">
+                                        <i class="icon-pencil4"></i>
+                                    </a>
+
+                                    <!-- Deactivate / Activate Toggle with SweetAlert -->
+                                    <?php if ($obj['status'] === '1'): ?>
+                                        <a href="<?= base_url('master/remark/toggle/' . $obj['remark_id']) ?>" 
+                                           class="sw-icon-btn toggle-deactivate sw-confirm-toggle" 
+                                           title="Deactivate Remark" 
+                                           data-action="Deactivate" 
+                                           data-name="<?= esc($obj['remark']) ?>">
+                                            <i class="icon-blocked"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?= base_url('master/remark/toggle/' . $obj['remark_id']) ?>" 
+                                           class="sw-icon-btn toggle-activate sw-confirm-toggle" 
+                                           title="Activate Remark" 
+                                           data-action="Activate" 
+                                           data-name="<?= esc($obj['remark']) ?>">
+                                            <i class="icon-checkmark-circle"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 48px 20px;">
+                            <div style="font-size: 36px; color: var(--sw-text-subtle); margin-bottom: 12px;">
+                                <i class="icon-search4"></i>
+                            </div>
+                            <h4 style="font-size: 16px; font-weight: 600; color: var(--sw-text-main); margin-bottom: 4px;">
+                                No remarks found
+                            </h4>
+                            <p style="color: var(--sw-text-muted); font-size: 13px; max-width: 400px; margin: 0 auto 16px auto;">
+                                Try adjusting your search query or filter parameters.
+                            </p>
+                            <a href="<?= base_url('master/remark') ?>" class="sw-btn-secondary" style="display: inline-flex;">
+                                Clear Filters
+                            </a>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modern Card Pagination Footer -->
+    <?php if ($pager->getPageCount() > 1): ?>
+        <div class="sw-table-footer">
+            <?= $pager->links('default', 'modern') ?>
+        </div>
+    <?php endif; ?>
+</div>
+<?= $this->endSection() ?>

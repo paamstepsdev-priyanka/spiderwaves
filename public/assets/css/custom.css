@@ -1,0 +1,14 @@
+.search_panel{
+    background-color: #EFEEEB;
+}
+.blockOverlay{
+    z-index: 10050 !important;
+}
+
+.green-bg{
+	background-color: #16a34a;
+}
+
+.red-bg{
+	background-color: #dc2626;
+}

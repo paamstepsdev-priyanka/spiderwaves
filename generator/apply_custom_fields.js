@@ -1,0 +1,415 @@
+const fs = require('fs');
+const path = require('path');
+
+const updatedHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Organization Management System — Executive Blueprint</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-accent: #2563eb;
+      --surface: #ffffff;
+      --bg: #f8fafc;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; font-size: 13px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+    
+    .header-box { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #fff; padding: 24px 28px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .header-box h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.02em; }
+    .header-box p { font-size: 13px; color: #94a3b8; max-width: 900px; }
+    .header-badges { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .badge { background: rgba(255,255,255,0.12); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    
+    .print-btn { float: right; background: #fff; color: #0f172a; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .print-btn:hover { background: #f1f5f9; }
+
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+    .section-title { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+    .section-title i { color: var(--primary-accent); }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+    th { background: #f1f5f9; color: #1e293b; font-weight: 700; text-align: left; padding: 8px 10px; border: 1px solid var(--border); }
+    td { padding: 7px 10px; border: 1px solid var(--border); color: #334155; vertical-align: top; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    
+    code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; color: #0f172a; border: 1px solid #e2e8f0; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .box { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+    .box h4 { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+
+    .sub-table { margin-top: 10px; font-size: 11.5px; }
+    .sub-table th { background: #e2e8f0; color: #0f172a; font-size: 11px; padding: 6px 8px; }
+    .sub-table td { padding: 5px 8px; }
+    
+    @media print {
+      body { background: #fff; font-size: 11px; }
+      .container { padding: 0; max-width: 100%; }
+      .print-btn { display: none; }
+      .section-card { border: 1px solid #94a3b8; box-shadow: none; page-break-inside: avoid; margin-bottom: 12px; padding: 12px 14px; }
+      .header-box { padding: 14px 18px; margin-bottom: 12px; background: #0f172a !important; color: #fff !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-box">
+      <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print / Save PDF</button>
+      <h1>Universal Membership & Community Management System</h1>
+      <p>Executive Blueprint & High-Level Architecture for Mandals, Trusts, Societies, and Associations (Reference: MMP Mumbai, SNS Mumbai).</p>
+      <div class="header-badges">
+        <span class="badge"><i class="fas fa-layer-group"></i> Multi-Tenant SaaS</span>
+        <span class="badge"><i class="fas fa-sitemap"></i> Multi-Tier Hierarchy</span>
+        <span class="badge"><i class="fas fa-user-edit"></i> Custom Member Attributes</span>
+        <span class="badge"><i class="fas fa-users"></i> Family (Kutumb) Trees</span>
+        <span class="badge"><i class="fas fa-calculator"></i> Double-Entry Accounting</span>
+        <span class="badge"><i class="fas fa-receipt"></i> 80G Tax Exemption</span>
+      </div>
+    </div>
+
+    <!-- 1. Executive Overview -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-info-circle"></i> 1. Executive Overview (In Short)</div>
+      <div class="grid-2">
+        <div class="box">
+          <h4>The Problem</h4>
+          <p>Community organizations, mandals, and trusts currently manage members across disconnected spreadsheets, paper registers, standalone desktop accounting (Tally), and WhatsApp groups, causing data loss, lack of tax compliance, and disjointed family records.</p>
+        </div>
+        <div class="box">
+          <h4>The Solution</h4>
+          <p>A unified, configurable, multi-tenant cloud application where each organization has isolated data and branding. Unifies Member Directory, Kutumb Family Trees, Dynamic Custom Member Attributes, Multi-tier Governance, POS Counter Fee Receipts, 80G Donations, Double-Entry Accounting, and Social Feeds.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Core Modules at a Glance -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-th-large"></i> 2. Core Modules (18 Modules at a Glance)</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th style="width: 200px;">Module Name</th>
+            <th>Primary Function & What It Does</th>
+            <th style="width: 170px;">Key Users</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>A</strong></td><td><strong>Organization Management</strong></td><td>Organization profile, trust reg/PAN, branding, and multi-tier hierarchy (Apex Body &rarr; State &rarr; Zone/Vibhag &rarr; Kendra &rarr; Ward).</td><td>Super Admin, Central Trustees</td></tr>
+          <tr><td><strong>B</strong></td><td><strong>Member Management & Custom Attributes</strong></td><td>Member directory, unique ID (MMP-2026-001), biodata, blood group, Native Village (Vatan), Gotra, multiple addresses, photo/ID docs, and <strong>Custom Member Attributes (dynamic organization-specific fields)</strong>.</td><td>Admins, Staff, Members</td></tr>
+          <tr><td><strong>C</strong></td><td><strong>Family (Kutumb) Management</strong></td><td>Family unit code, Head of Family (Kutumb Pramukh), relationship mapping (Spouse, Child, Parent), and visual generational family tree.</td><td>Family Head, Kendra Admins</td></tr>
+          <tr><td><strong>D</strong></td><td><strong>Membership Lifecycle</strong></td><td>Plans (Patron, Life, Annual), digital onboarding application, 3-tier approval queue (Clerk &rarr; Kendra &rarr; Trustee), dynamic QR digital ID card.</td><td>Applicants, Committee, Members</td></tr>
+          <tr><td><strong>E</strong></td><td><strong>Social Community Timeline</strong></td><td>Private social feed: member posts, photos, announcements, condolences (Besna/Shradhanjali), achievements, interactive polls, moderation.</td><td>Verified Members, Moderators</td></tr>
+          <tr><td><strong>F</strong></td><td><strong>Committee & Governance</strong></td><td>Managing Committee, Trustees, Youth/Women wings, tenure start/end, meeting notices, roll-call attendance, minutes, formal resolutions (Tharav).</td><td>President, Secretary, Committee</td></tr>
+          <tr><td><strong>G</strong></td><td><strong>Membership Fee & Billing</strong></td><td>Category-wise annual/monthly fee schedules, batch demand invoicing, counter POS payment desk, receipt generation, late dues aging.</td><td>Accountants, Cashiers, Members</td></tr>
+          <tr><td><strong>H</strong></td><td><strong>Donations & 80G Tax</strong></td><td>Fund campaigns (Building, Education, Relief), memorial gifts (Smruti Bhet), 80G tax exemption certificates, Form 10BD IT filing export.</td><td>Donors, Cashiers, Treasurers</td></tr>
+          <tr><td><strong>I</strong></td><td><strong>Double-Entry Accounting</strong></td><td>Full trust accounting: Chart of Accounts, Vouchers (Receipt, Payment, Journal, Contra), balance check (&Sigma;Dr == &Sigma;Cr), Maker-Checker approval, Trial Balance, P&L, Balance Sheet.</td><td>Accountant (Maker), Treasurer (Checker)</td></tr>
+          <tr><td><strong>J</strong></td><td><strong>Events & Ticketing</strong></td><td>Festivals (Diwali Sneh Milan, AGM, Sports), tiered tickets (Member free, Guest paid), QR pass check-in at gate via smartphone camera, food passes.</td><td>Event Organizers, Gate Volunteers</td></tr>
+          <tr><td><strong>K</strong></td><td><strong>Communication & Alerts</strong></td><td>DLT SMS broadcasts, verified WhatsApp Business API, transactional email, automated 8:00 AM birthday & anniversary greetings, fee payment reminders.</td><td>Automated Cron, Admins</td></tr>
+          <tr><td><strong>L</strong></td><td><strong>User & Role Security (RBAC)</strong></td><td>Role-based permissions (Super Admin, Trustee, Secretary, Treasurer, Accountant, Member) scoped to central org or local Kendra, TOTP 2FA.</td><td>System Administrators</td></tr>
+          <tr><td><strong>M</strong></td><td><strong>Document Vault</strong></td><td>Encrypted repository for Trust Deeds, 12A/80G orders, property title deeds, signed minutes books, member identity documents.</td><td>Trustees, Admins</td></tr>
+          <tr><td><strong>N</strong></td><td><strong>Reports & Dashboards</strong></td><td>4 Dashboards (Trustee, Branch, Finance, Member) + 20+ reports (Members, Dues, Form 10BD, Trial Balance, Balance Sheet, Event Attendance).</td><td>Trustees, Auditors, Managers</td></tr>
+          <tr><td><strong>O</strong></td><td><strong>Welfare & Scholarships</strong></td><td>Education scholarships, dialysis/cancer medical relief aid, destitute widow monthly pension, multi-level sanction and bank disbursement.</td><td>Welfare Committee, Beneficiaries</td></tr>
+          <tr><td><strong>P</strong></td><td><strong>Hall & Wadi Bookings</strong></td><td>Community hall / Wadi slot reservations (Morning/Evening), member vs non-member rates, deposit tracking; medical equipment lending (Wheelchair, Beds).</td><td>Facility Manager, Members</td></tr>
+          <tr><td><strong>Q</strong></td><td><strong>Elections & E-Voting</strong></td><td>Committee elections, nominations filing, scrutiny, blind secret ballot electronic voting, instant automated vote tallying.</td><td>Election Officers, Voters</td></tr>
+          <tr><td><strong>R</strong></td><td><strong>Grievance Helpdesk</strong></td><td>Member support ticketing, category routing (ID cards, billing, hall booking), SLA resolution timer, escalation.</td><td>Helpdesk Staff, Members</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2.1 Feature Specification: Custom Member Attributes -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-sliders-h"></i> 2.1 Feature Specification: Custom Member Attributes</div>
+      <p style="margin-bottom: 10px; color: var(--muted);">Allows each organization administrator to create, customize, and manage extra fields in the Member Profile independently, without modifying the core software or database schema.</p>
+      
+      <div class="grid-2">
+        <div class="box">
+          <h4>Required Functionalities & Controls</h4>
+          <ul style="padding-left: 18px; line-height: 1.6; font-size: 12px; color: #334155;">
+            <li><strong>Admin Creation:</strong> Admin can create new custom fields with unique field name and user-friendly display label.</li>
+            <li><strong>7 Supported Field Types:</strong> <code>Text</code>, <code>Number</code>, <code>Date</code>, <code>Dropdown</code>, <code>Checkbox</code>, <code>Multi-select</code>, and <code>File Upload</code>.</li>
+            <li><strong>Validation & Settings:</strong> Mark fields as Required or Optional, and activate or deactivate fields at any time.</li>
+            <li><strong>Dropdown Options Builder:</strong> Admin can define, edit, and reorder options for Dropdown and Multi-select fields.</li>
+            <li><strong>Reordering & Grouping:</strong> Admin can set display order and assign fields to profile sections (Personal, Education, Profession, Skills, Emergency Contact, etc.).</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h4>Dynamic Form & Profile Integration</h4>
+          <ul style="padding-left: 18px; line-height: 1.6; font-size: 12px; color: #334155;">
+            <li><strong>Automatic Form Rendering:</strong> Created active fields automatically render in the Add Member and Edit Member forms.</li>
+            <li><strong>Profile 360 Display:</strong> Saved custom values are rendered in designated sections within the Member Profile view.</li>
+            <li><strong>Independent Tenant Isolation:</strong> Custom fields belong strictly to the creating organization (<code>organization_id</code>); other organizations are completely unaffected.</li>
+            <li><strong>Data Integrity:</strong> Prevents deletion of fields that have populated member data (field can be deactivated instead).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Database Architecture: Tables by Module -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-database"></i> 3. Database Architecture — Necessary Tables by Module</div>
+      <p style="margin-bottom: 6px; color: var(--muted);">Every tenant table includes: <code>organization_id, created_at, created_by, updated_at, status</code>.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 140px;">Module</th>
+            <th style="width: 200px;">Table Name</th>
+            <th style="width: 310px;">Key Columns</th>
+            <th>Primary Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Tenant & Org</strong></td>
+            <td><code>sys_tenants</code><br><code>org_organizations</code><br><code>org_units</code></td>
+            <td><code>id, code, name, subdomain, plan</code><br><code>id, tenant_id, name, trust_reg_no, pan, 80g_no</code><br><code>id, organization_id, parent_unit_id, code, name, level</code></td>
+            <td>SaaS client account, legal trust identity, and recursive administrative tree (Apex &rarr; State &rarr; Zone &rarr; Kendra).</td>
+          </tr>
+          <tr>
+            <td><strong>Members</strong></td>
+            <td><code>mem_members</code><br><code>mem_addresses</code><br><code>mem_documents</code></td>
+            <td><code>id, org_id, unit_id, membership_no, name, native_place_vatan, gotra, blood_group, dob, status</code><br><code>id, member_id, address_type, flat_building, street, city_id, pin</code><br><code>id, member_id, doc_type, file_url, is_verified</code></td>
+            <td>Core member registry, multiple addresses (Residence, Office, Native village), and uploaded ID proofs (Aadhaar/PAN).</td>
+          </tr>
+          <tr style="background: #f0fdf4;">
+            <td><strong>Custom Member Attributes</strong><br><span style="font-size: 10px; color: #166534; font-weight: 700; background: #bbf7d0; padding: 2px 5px; border-radius: 4px;">FEATURE TABLES</span></td>
+            <td><code>cfg_custom_fields</code><br><code>cfg_custom_field_options</code><br><code>mem_custom_field_values</code></td>
+            <td><code>id, organization_id, field_name, field_label, field_type, section_group, is_required, is_active, display_order</code><br><code>id, organization_id, custom_field_id, option_label, option_value, display_order, is_active</code><br><code>id, organization_id, member_id, custom_field_id, field_value, file_url</code></td>
+            <td>
+              <strong>cfg_custom_fields:</strong> Custom field definitions per organization (Text, Number, Date, Dropdown, Checkbox, Multi-select, File).<br>
+              <strong>cfg_custom_field_options:</strong> Predefined option choices for dropdown/multi-select fields.<br>
+              <strong>mem_custom_field_values:</strong> Member-specific values and uploaded files for the custom fields.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Family (Kutumb)</strong></td>
+            <td><code>fam_families</code><br><code>fam_family_members</code></td>
+            <td><code>id, org_id, family_code, family_name, head_member_id</code><br><code>id, family_id, member_id, relationship_id, is_dependent</code></td>
+            <td>Kutumb household unit, head of family assignment, and member kinship relationships (Spouse, Son, Daughter, etc.).</td>
+          </tr>
+          <tr>
+            <td><strong>Membership Plans</strong></td>
+            <td><code>mbr_plans</code><br><code>mbr_applications</code><br><code>mbr_subscriptions</code></td>
+            <td><code>id, code, name, tenure_months, admission_fee, annual_fee</code><br><code>id, applicant_name, proposer_member_id, scrutiny_status</code><br><code>id, member_id, plan_id, start_date, end_date, is_lifetime</code></td>
+            <td>Subscription tiers (Life, Annual), online admission applications queue, and active member subscriptions.</td>
+          </tr>
+          <tr>
+            <td><strong>Governance</strong></td>
+            <td><code>cmt_committees</code><br><code>cmt_committee_members</code><br><code>cmt_meetings</code><br><code>cmt_resolutions</code></td>
+            <td><code>id, committee_type, name, tenure_start, tenure_end</code><br><code>id, committee_id, member_id, designation_id, appointment_no</code><br><code>id, meeting_type, date, time, venue, quorum_count, minutes</code><br><code>id, meeting_id, res_number, proposer_id, text, outcome</code></td>
+            <td>Committees/wings, appointed officers (President, Secretary, Treasurer), meeting agendas/minutes, and passed resolutions (Tharav).</td>
+          </tr>
+          <tr>
+            <td><strong>Fees & Dues</strong></td>
+            <td><code>fee_demands</code><br><code>fee_collections</code><br><code>fee_collection_items</code></td>
+            <td><code>id, member_id, fy_id, invoice_no, billed_amt, balance</code><br><code>id, receipt_no, member_id, date, amount, mode, utr, voucher_id</code><br><code>id, collection_id, demand_id, allocated_amount</code></td>
+            <td>Invoiced membership dues, POS counter collection payments, and payment breakdown allocation to invoices.</td>
+          </tr>
+          <tr>
+            <td><strong>Donations</strong></td>
+            <td><code>don_donors</code><br><code>don_donations</code><br><code>don_campaigns</code></td>
+            <td><code>id, name, pan_number, mobile, postal_address</code><br><code>id, receipt_no, 80g_cert_no, donor_id, category_id, amt, in_memory_of</code><br><code>id, title, goal_amount, collected_amount, 80g_eligible</code></td>
+            <td>Donor master with PAN, philanthropic donations with 80G tax certificate numbers, and earmarked fundraising campaigns.</td>
+          </tr>
+          <tr>
+            <td><strong>Accounting</strong></td>
+            <td><code>acc_chart_of_accounts</code><br><code>acc_vouchers</code><br><code>acc_voucher_details</code><br><code>acc_bank_reconciliations</code></td>
+            <td><code>id, code, name, account_group_id, normal_balance, op_bal</code><br><code>id, voucher_no, type_id, date, narration, dr_total, cr_total, maker_id, checker_id</code><br><code>id, voucher_id, account_id, debit_amount, credit_amount</code><br><code>id, bank_account_id, statement_date, cleared_date, voucher_detail_id</code></td>
+            <td>Double-entry general ledger tree, balanced vouchers (Payment, Receipt, Journal, Contra), debit/credit lines, and bank reconciliation.</td>
+          </tr>
+          <tr>
+            <td><strong>Events</strong></td>
+            <td><code>evt_events</code><br><code>evt_ticket_types</code><br><code>evt_registrations</code></td>
+            <td><code>id, category_id, title, start_date, venue, capacity, banner</code><br><code>id, event_id, tier_name, price, quota</code><br><code>id, event_id, member_id, total_passes, qr_token, is_checked_in</code></td>
+            <td>Community festivals & AGMs, tiered passes, booking records with QR codes for turnstile scanning and food pass check-in.</td>
+          </tr>
+          <tr>
+            <td><strong>Social Feed</strong></td>
+            <td><code>soc_posts</code><br><code>soc_comments</code><br><code>soc_reactions</code></td>
+            <td><code>id, author_id, post_type, content, media_json, likes_count, status</code><br><code>id, post_id, member_id, comment_text</code><br><code>id, post_id, member_id, reaction_type</code></td>
+            <td>Member social timeline, announcements, condolences (Besna), congratulatory notices, threaded comments, and likes.</td>
+          </tr>
+          <tr>
+            <td><strong>Security & RBAC</strong></td>
+            <td><code>rbac_users</code><br><code>rbac_roles</code><br><code>rbac_user_roles</code><br><code>sys_audit_logs</code></td>
+            <td><code>id, username, mobile, email, password_hash, is_2fa_enabled</code><br><code>id, code, name, description</code><br><code>id, user_id, role_id, unit_id_scope</code><br><code>id, user_id, action, entity_type, entity_id, old_values, new_values, ip</code></td>
+            <td>Logins, roles, user-to-role assignment scoped to specific branch/Kendra, and tamper-proof forensic audit trail of all changes.</td>
+          </tr>
+          <tr>
+            <td><strong>Welfare & Facilities</strong></td>
+            <td><code>sch_welfare_applications</code><br><code>fac_facilities</code><br><code>fac_bookings</code></td>
+            <td><code>id, applicant_member_id, category, requested_amt, sanction_amt, status</code><br><code>id, name, facility_type, capacity, member_rate, non_member_rate</code><br><code>id, facility_id, member_id, slot_date, time_slot, total_amt, deposit</code></td>
+            <td>Scholarship and medical aid applications queue, community hall/wadi assets, and reservation bookings.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Detailed Specification of Custom Fields Tables -->
+      <h4 style="margin-top: 16px; font-size: 13px; font-weight: 700; color: #1e3a8a;"><i class="fas fa-table"></i> Schema Specification: Custom Member Attributes Tables</h4>
+      
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th style="width: 170px;">Table Name</th>
+            <th style="width: 180px;">Column Name</th>
+            <th style="width: 140px;">Data Type</th>
+            <th style="width: 60px;">Key</th>
+            <th style="width: 70px;">Null</th>
+            <th>Relationship & Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="8"><strong><code>cfg_custom_fields</code></strong><br><small>Defines custom fields per organization</small></td>
+            <td><code>id</code></td><td>BIGINT UNSIGNED</td><td>PK</td><td>NO</td><td>Surrogate primary key</td>
+          </tr>
+          <tr><td><code>organization_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>org_organizations.id</code> (Tenant isolation)</td></tr>
+          <tr><td><code>field_name</code></td><td>VARCHAR(100)</td><td>-</td><td>NO</td><td>System key (e.g. 'skills_list', 'emergency_contact_2')</td></tr>
+          <tr><td><code>field_label</code></td><td>VARCHAR(150)</td><td>-</td><td>NO</td><td>Label rendered on form (e.g. 'Community Skills')</td></tr>
+          <tr><td><code>field_type</code></td><td>VARCHAR(30)</td><td>-</td><td>NO</td><td><code>TEXT</code>, <code>NUMBER</code>, <code>DATE</code>, <code>DROPDOWN</code>, <code>CHECKBOX</code>, <code>MULTISELECT</code>, <code>FILE</code></td></tr>
+          <tr><td><code>section_group</code></td><td>VARCHAR(100)</td><td>-</td><td>NO</td><td>Form section grouping (Personal, Education, Profession, etc.)</td></tr>
+          <tr><td><code>is_required</code> / <code>is_active</code></td><td>TINYINT(1)</td><td>-</td><td>NO</td><td>Validation flags (1=True, 0=False). Defaults: required=0, active=1</td></tr>
+          <tr><td><code>display_order</code></td><td>INT UNSIGNED</td><td>-</td><td>NO</td><td>Sort order for rendering on screen (Default: 0)</td></tr>
+
+          <tr>
+            <td rowspan="6"><strong><code>cfg_custom_field_options</code></strong><br><small>Predefined options for dropdowns</small></td>
+            <td><code>id</code></td><td>BIGINT UNSIGNED</td><td>PK</td><td>NO</td><td>Surrogate primary key</td>
+          </tr>
+          <tr><td><code>organization_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>org_organizations.id</code> (Tenant isolation)</td></tr>
+          <tr><td><code>custom_field_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>cfg_custom_fields.id</code> (Cascade delete)</td></tr>
+          <tr><td><code>option_label</code></td><td>VARCHAR(150)</td><td>-</td><td>NO</td><td>Display text shown to user (e.g. 'Software Engineer')</td></tr>
+          <tr><td><code>option_value</code></td><td>VARCHAR(150)</td><td>-</td><td>NO</td><td>Stored value (e.g. 'SW_ENG')</td></tr>
+          <tr><td><code>display_order</code> / <code>is_active</code></td><td>INT / TINYINT</td><td>-</td><td>NO</td><td>Option ordering and active toggle</td></tr>
+
+          <tr>
+            <td rowspan="6"><strong><code>mem_custom_field_values</code></strong><br><small>Stores member-specific custom values</small></td>
+            <td><code>id</code></td><td>BIGINT UNSIGNED</td><td>PK</td><td>NO</td><td>Surrogate primary key</td>
+          </tr>
+          <tr><td><code>organization_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>org_organizations.id</code> (Tenant isolation)</td></tr>
+          <tr><td><code>member_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>mem_members.id</code> (Owning member)</td></tr>
+          <tr><td><code>custom_field_id</code></td><td>BIGINT UNSIGNED</td><td>FK</td><td>NO</td><td>FK &rarr; <code>cfg_custom_fields.id</code> (Referenced field)</td></tr>
+          <tr><td><code>field_value</code></td><td>LONGTEXT</td><td>-</td><td>YES</td><td>Stores text, number, date, selected option, or JSON array</td></tr>
+          <tr><td><code>file_url</code></td><td>VARCHAR(500)</td><td>-</td><td>YES</td><td>Cloud storage path for <code>FILE</code> uploads (NULL for other types)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. Key Master Tables -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-list"></i> 4. Essential Master Tables (Lookups)</div>
+      <div class="grid-3">
+        <div class="box">
+          <h4>Demographic Masters</h4>
+          <p><code>mst_qualifications</code><br><code>mst_occupations</code><br><code>mst_relationships</code></p>
+        </div>
+        <div class="box">
+          <h4>Organization & Member Masters</h4>
+          <p><code>mst_member_statuses</code><br><code>mst_committee_types</code><br><code>mst_committee_designations</code></p>
+        </div>
+        <div class="box">
+          <h4>Finance & System Masters</h4>
+          <p><code>mst_payment_modes</code><br><code>mst_payment_statuses</code><br><code>mst_donation_categories</code><br><code>mst_document_types</code></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Key Workflows in Short -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-route"></i> 5. Key Workflows in Short</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 180px;">Workflow</th>
+            <th>Step-by-Step Flow (Who does what)</th>
+            <th style="width: 170px;">Key Rule / Validation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>New Member Onboarding</strong></td>
+            <td>Applicant submits online form &rarr; Clerk checks docs & proposer &rarr; Kendra Secretary verifies &rarr; Trustee approves &rarr; Member ID & QR Card generated.</td>
+            <td>Proposer must be an active, non-defaulter member.</td>
+          </tr>
+          <tr style="background: #f0fdf4;">
+            <td><strong>Custom Member Attributes Setup & Data Entry</strong></td>
+            <td>Admin opens Custom Fields &rarr; Defines field name, label, type (Text, Dropdown, Date, File, etc.), section & Required toggle &rarr; Adds options if dropdown &rarr; System dynamically renders field on Add/Edit Member screens &rarr; Member/Staff enters value &rarr; Stored in <code>mem_custom_field_values</code> & displayed on Profile.</td>
+            <td>Field names unique per organization; required validations enforced; cannot delete field with active populated member data.</td>
+          </tr>
+          <tr>
+            <td><strong>Family (Kutumb) Creation</strong></td>
+            <td>Family Head is chosen &rarr; Family Code generated &rarr; Relatives linked with relationship (Spouse, Son, Mother) &rarr; Visual tree drawn.</td>
+            <td>Exactly 1 Head of Family per unit; biological kinship consistency.</td>
+          </tr>
+          <tr>
+            <td><strong>Fee Dues & POS Collection</strong></td>
+            <td>System generates annual demand &rarr; Member pays online or at counter &rarr; Instant PDF/WhatsApp receipt &rarr; Receipt Voucher auto-created in GL.</td>
+            <td>Sequential receipt numbering; no duplicate invoicing for same period.</td>
+          </tr>
+          <tr>
+            <td><strong>80G Donation Collection</strong></td>
+            <td>Donor contributes &rarr; Fund tagged (Building/Education) &rarr; 80G Tax receipt generated with PAN &rarr; Posted to GL fund &rarr; Exported in Form 10BD.</td>
+            <td>Mandatory PAN for 80G tax benefit; sequential certificate numbers.</td>
+          </tr>
+          <tr>
+            <td><strong>Accounting Voucher Approval</strong></td>
+            <td>Accountant prepares voucher (Maker) &rarr; Balance checked (&Sigma;Dr == &Sigma;Cr) &rarr; Treasurer reviews & approves (Checker) &rarr; Posted & locked.</td>
+            <td>Maker cannot be the Checker; posted vouchers cannot be silently deleted.</td>
+          </tr>
+          <tr>
+            <td><strong>Committee Meeting & Minutes</strong></td>
+            <td>Secretary schedules meeting & notice &rarr; Roll-call & quorum check &rarr; Agenda discussed &rarr; Resolutions (Tharav) voted & recorded &rarr; Minutes signed.</td>
+            <td>Quorum validation check before voting; official minutes locked.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 6. Recommended Tech Stack -->
+    <div class="section-card">
+      <div class="section-title"><i class="fas fa-server"></i> 6. Recommended Technology Stack</div>
+      <div class="grid-3">
+        <div class="box">
+          <h4>Frontend (UI/UX)</h4>
+          <p><strong>Vue 3 / Nuxt 3</strong> or <strong>React Next.js</strong> with Tailwind CSS and PrimeVue components. Responsive for Desktop, Tablet, and Mobile PWA.</p>
+        </div>
+        <div class="box">
+          <h4>Backend API</h4>
+          <p><strong>PHP Laravel 11</strong> or <strong>Node.js NestJS</strong>. Clean Architecture, Domain-Driven Design, strictly typed RESTful APIs, and JWT/TOTP 2FA.</p>
+        </div>
+        <div class="box">
+          <h4>Database & Infrastructure</h4>
+          <p><strong>PostgreSQL 16</strong> (with Row-Level Security for tenant isolation) or MySQL 8.0, <strong>Redis 7</strong> (cache/locks), and <strong>MinIO/S3</strong> (encrypted doc storage).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+// 1. Update original blueprint HTML
+fs.writeFileSync(path.join(__dirname, '..', 'universal_organization_management_blueprint.html'), updatedHtml, 'utf8');
+
+// 2. Write updated file with requested name
+fs.writeFileSync(path.join(__dirname, '..', 'universal_organization_management_blueprint_updated.html'), updatedHtml, 'utf8');
+
+// 3. Write to artifact directory as well
+const artifactDir = 'C:\\Users\\Administrator.IMAGE-WIN2019\\.gemini\\antigravity\\brain\\49f1af9b-4bd8-4e8c-9771-e3c30c5f43bb';
+if (fs.existsSync(artifactDir)) {
+  fs.writeFileSync(path.join(artifactDir, 'universal_organization_management_blueprint.html'), updatedHtml, 'utf8');
+  fs.writeFileSync(path.join(artifactDir, 'universal_organization_management_blueprint_updated.html'), updatedHtml, 'utf8');
+}
+
+console.log('Successfully written both universal_organization_management_blueprint.html and universal_organization_management_blueprint_updated.html!');
+

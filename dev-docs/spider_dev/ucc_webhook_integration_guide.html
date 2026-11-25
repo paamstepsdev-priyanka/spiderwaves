@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpiderWaves Inbound Webhook Integration Guide (for UCC Developer)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 24px;
+            background: #ffffff;
+        }
+        h1 {
+            font-size: 24px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            color: #0f172a;
+        }
+        h2 {
+            font-size: 18px;
+            margin-top: 28px;
+            color: #0f172a;
+        }
+        h3 {
+            font-size: 15px;
+            margin-top: 18px;
+            color: #334155;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: Consolas, Monaco, "Courier New", monospace;
+            font-size: 13px;
+            color: #0f172a;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .note {
+            background: #eff6ff;
+            border-left: 4px solid #2563eb;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+        ul, ol {
+            padding-left: 22px;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SpiderWaves Inbound Webhook Integration Guide (for UCC Developer)</h1>
+    <p>This document provides all details required for <strong>UCC</strong> to send master-change webhook notifications to <strong>SpiderWaves</strong>.</p>
+
+    <h2>1. Endpoint Details</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Method</strong></td>
+                <td><code>POST</code></td>
+            </tr>
+            <tr>
+                <td><strong>Production URL</strong></td>
+                <td><code>https://spider.veeragold.in/webhooks/ucc/master_changed</code></td>
+            </tr>
+            <tr>
+                <td><strong>Signed Path (<code>PATH_WITH_QUERY</code>)</strong></td>
+                <td><code>/webhooks/ucc/master_changed</code> <em>(no hosting sub-folder)</em></td>
+            </tr>
+            <tr>
+                <td><strong>Transport</strong></td>
+                <td>HTTPS (TLS 1.2+), valid trusted SSL certificate</td>
+            </tr>
+            <tr>
+                <td><strong>Redirects</strong></td>
+                <td>None (direct <code>POST</code> endpoint, no HTTP&rarr;HTTPS or trailing-slash redirect)</td>
+            </tr>
+            <tr>
+                <td><strong>Timeout</strong></td>
+                <td>SpiderWaves queues the sync and responds within ~1&ndash;2 seconds</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>2. UCC Configuration (<code>.env</code>)</h2>
+    <p>Configure the following in UCC's environment:</p>
+    <pre><code>spiderApi.webhookUrl    = https://spider.veeragold.in/webhooks/ucc/master_changed
+spiderApi.webhookBearer = &lt;UCC_WEBHOOK_BEARER&gt;
+spiderApi.webhookSecret = &lt;UCC_WEBHOOK_SECRET&gt;</code></pre>
+    <div class="note">
+        <strong>Note:</strong> For security, the <strong>Bearer key</strong> and <strong>HMAC secret</strong> are shared separately via a secure channel (password manager / one-time secret link) and should never be committed to source control or sent together in plain chat/email.
+    </div>
+
+    <h2>3. Request Headers &amp; Signature Specification</h2>
+    <p>Every <code>POST</code> request from UCC must include:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Header</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>Authorization</code></td>
+                <td><code>Bearer &lt;UCC_WEBHOOK_BEARER&gt;</code></td>
+            </tr>
+            <tr>
+                <td><code>X-Timestamp</code></td>
+                <td>Current Unix timestamp in seconds (must be within <strong>&plusmn;300 seconds</strong> of server time)</td>
+            </tr>
+            <tr>
+                <td><code>X-Nonce</code></td>
+                <td>Unique random string per request (max <strong>64 characters</strong>, retained for 15 minutes for replay protection)</td>
+            </tr>
+            <tr>
+                <td><code>X-Signature</code></td>
+                <td>Lowercase hex <code>HMAC-SHA256</code> using <code>&lt;UCC_WEBHOOK_SECRET&gt;</code></td>
+            </tr>
+            <tr>
+                <td><code>Content-Type</code></td>
+                <td><code>application/json</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3><code>string_to_sign</code> Format</h3>
+    <pre><code>string_to_sign = "POST" + "\n" + PATH_WITH_QUERY + "\n" + X-Timestamp + "\n" + X-Nonce + "\n" + sha256_hex(RAW_BODY)
+X-Signature    = hash_hmac("sha256", string_to_sign, UCC_WEBHOOK_SECRET)</code></pre>
+    <ul>
+        <li><code>PATH_WITH_QUERY</code> is <code>/webhooks/ucc/master_changed</code> (including <code>?query</code> if any).</li>
+        <li><code>RAW_BODY</code> is the exact raw JSON bytes sent on the wire (do not re-encode or alter whitespace).</li>
+    </ul>
+
+    <h2>4. Request Payload</h2>
+    <h3>Real Master-Change Notification</h3>
+    <pre><code>{
+  "master_version": "f4154ebaf175330eedbc3bdbd4f177d104d4383972a8f4badf90d3f0d8911ef6",
+  "sent_at": "2026-11-25T12:00:00+00:00"
+}</code></pre>
+    <p>SpiderWaves verifies the signature, queues a background <code>ucc:sync</code> job, and returns <code>200 OK</code> immediately.</p>
+
+    <h3>Test Ping (from UCC API Manager)</h3>
+    <pre><code>{
+  "master_version": "f4154ebaf175330eedbc3bdbd4f177d104d4383972a8f4badf90d3f0d8911ef6",
+  "sent_at": "2026-11-25T12:00:00+00:00",
+  "test": true
+}</code></pre>
+    <p>SpiderWaves verifies all headers and signature, and returns <code>200 OK</code> with <code>"is_test": true</code> without triggering a sync.</p>
+
+    <h2>5. Expected HTTP Responses</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Meaning</th>
+                <th>Example Body</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>200 OK</code></td>
+                <td>Verified &amp; accepted</td>
+                <td><code>{"status":"ok","master_version":"...","is_test":false}</code></td>
+            </tr>
+            <tr>
+                <td><code>400 Bad Request</code></td>
+                <td>Missing or invalid <code>master_version</code> in JSON</td>
+                <td><code>{"status":"error","message":"A JSON object with master_version is required"}</code></td>
+            </tr>
+            <tr>
+                <td><code>401 Unauthorized</code></td>
+                <td>Invalid bearer, malformed headers, timestamp &gt; 300s off, invalid signature, or reused nonce</td>
+                <td><code>{"status":"error","message":"Invalid signature"}</code></td>
+            </tr>
+            <tr>
+                <td><code>405 Method Not Allowed</code></td>
+                <td>Non-<code>POST</code> request</td>
+                <td><code>{"status":"error","message":"POST only"}</code></td>
+            </tr>
+            <tr>
+                <td><code>503 Service Unavailable</code></td>
+                <td>Webhook credentials not yet configured on SpiderWaves <code>.env</code></td>
+                <td><code>{"status":"error","message":"Spider UCC webhook credentials ... are not configured in .env."}</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>6. Joint Verification Checklist</h2>
+    <ol>
+        <li><strong>Test Ping:</strong> Click <strong>Send test webhook</strong> in UCC API Manager &rarr; expect <code>HTTP 200</code> with <code>"is_test": true</code>.</li>
+        <li><strong>Failure Drill:</strong> Test with a wrong secret &rarr; expect <code>HTTP 401 Invalid signature</code>.</li>
+        <li><strong>Live Change Drill:</strong> Update a master record in UCC &rarr; UCC sends notification &rarr; SpiderWaves returns <code>HTTP 200</code> and syncs the updated record automatically.</li>
+    </ol>
+</body>
+</html>
+
