@@ -70,7 +70,7 @@ class MasterController extends BaseController
         $status = $this->request->getGet('status');
         $sort   = trim((string)($this->request->getGet('sort') ?? ''));
 
-        $perPage      = 10;
+        $perPage      = 20;
         $page         = (int)($this->request->getGet('page') ?? 1);
         $res          = $this->unifiedMasterService->getPaginatedCustomers($perPage, $search, $type, $status, $page, $sort);
         $customers    = $res['rows'];
@@ -81,6 +81,9 @@ class MasterController extends BaseController
             'title'        => 'Customer Master',
             'customers'    => $customers,
             'pager'        => $pager,
+            'total'        => $res['total'],
+            'totalAll'     => (int)($summaryStats['total_customers'] ?? $res['total']),
+            'hasFilters'   => ($search !== '' || $type !== '' || ($status !== null && $status !== '')),
             'search'       => $search,
             'type'         => $type,
             'status'       => $status,
@@ -211,7 +214,7 @@ class MasterController extends BaseController
         $status       = $this->request->getGet('status');
         $sort         = trim((string)($this->request->getGet('sort') ?? ''));
 
-        $perPage      = 10;
+        $perPage      = 20;
         $page         = (int)($this->request->getGet('page') ?? 1);
         $res          = $this->unifiedMasterService->getPaginatedMappings(
             $perPage,
@@ -233,6 +236,9 @@ class MasterController extends BaseController
             'title'             => 'Mapped Customer',
             'mappings'          => $mappings,
             'pager'             => $pager,
+            'total'             => $res['total'],
+            'totalAll'          => (int)($summaryStats['total_mappings'] ?? $res['total']),
+            'hasFilters'        => ($search !== '' || $custId > 0 || $collectionId > 0 || ($status !== null && $status !== '')),
             'search'            => $search,
             'custId'            => $custId,
             'collectionId'      => $collectionId,
@@ -434,7 +440,7 @@ class MasterController extends BaseController
         $search = trim((string)($this->request->getGet('q') ?? ''));
         $status = $this->request->getGet('status');
 
-        $perPage      = 10;
+        $perPage      = 20;
         $page         = (int)($this->request->getGet('page') ?? 1);
         $res          = $this->unifiedMasterService->getPaginatedCollections($perPage, $search, $status, $page);
         $collections  = $res['rows'];
@@ -444,6 +450,9 @@ class MasterController extends BaseController
             'title'        => 'Collection Master',
             'collections'  => $collections,
             'pager'        => $pager,
+            'total'        => $res['total'],
+            'totalAll'     => $this->unifiedMasterService->getTotalCollectionsCount(),
+            'hasFilters'   => ($search !== '' || ($status !== null && $status !== '')),
             'search'       => $search,
             'status'       => $status,
         ];
@@ -539,7 +548,7 @@ class MasterController extends BaseController
         $search = trim((string)($this->request->getGet('q') ?? ''));
         $status = $this->request->getGet('status');
 
-        $perPage      = 10;
+        $perPage      = 20;
         $page         = (int)($this->request->getGet('page') ?? 1);
         $res          = $this->unifiedMasterService->getPaginatedPurities($perPage, $search, $status, $page);
         $purities     = $res['rows'];
@@ -550,6 +559,9 @@ class MasterController extends BaseController
             'title'        => 'Purity Master',
             'purities'     => $purities,
             'pager'        => $pager,
+            'total'        => $res['total'],
+            'totalAll'     => (int)($summaryStats['total_purities'] ?? $res['total']),
+            'hasFilters'   => ($search !== '' || ($status !== null && $status !== '')),
             'search'       => $search,
             'status'       => $status,
             'summaryStats' => $summaryStats,
@@ -654,20 +666,24 @@ class MasterController extends BaseController
         $search = trim((string)($this->request->getGet('q') ?? ''));
         $status = $this->request->getGet('status');
 
-        $perPage  = 10;
+        $perPage  = 20;
         $wastages = $this->uccWastageModel->getPaginatedWastages(
             $perPage,
             $search !== '' ? $search : null,
             ($status !== null && $status !== '') ? (string)$status : null
         );
         $pager    = $this->uccWastageModel->pager;
+        $totalAll = (int)$this->uccWastageModel->where('deleted_at IS NULL')->countAllResults();
 
         return view('master/ucc_wastage/index', [
-            'title'    => 'Wastage Master',
-            'wastages' => $wastages,
-            'pager'    => $pager,
-            'search'   => $search,
-            'status'   => $status,
+            'title'      => 'Wastage Master',
+            'wastages'   => $wastages,
+            'pager'      => $pager,
+            'total'      => $pager->getTotal(),
+            'totalAll'   => $totalAll,
+            'hasFilters' => ($search !== '' || ($status !== null && $status !== '')),
+            'search'     => $search,
+            'status'     => $status,
         ]);
     }
 
@@ -1574,148 +1590,6 @@ class MasterController extends BaseController
         }
 
         return redirect()->to(base_url('master/remark'))->with('error', $result['message']);
-    }
-
-    /**
-     * Manage Recent Customer Ledger Files (CI2 feature)
-     */
-    public function manage_recent_cust_ledger_file()
-    {
-        $custData = $this->unifiedMasterService->getActiveCustomers();
-        
-        $backupDir = WRITEPATH . 'backup/ledger/customer_ledger/';
-        $altDir    = FCPATH . 'backup/ledger/customer_ledger/';
-        $resultData = [];
-        
-        if (!empty($custData)) {
-            foreach ($custData as $obj) {
-                $custId = $obj['cust_id'];
-                if (file_exists($backupDir . $custId . '.xls') || file_exists($altDir . $custId . '.xls')) {
-                    $item = new \stdClass();
-                    $item->cust_id   = $custId;
-                    $item->cust_name = $obj['cust_name'];
-                    $resultData[] = $item;
-                }
-            }
-        }
-        
-        $data = [
-            'recent_cust_data' => $resultData,
-            'title'            => 'Recent Cust Wise Report File',
-        ];
-        
-        return view('master/recent_file/recent_cust_wise_report_file', $data);
-    }
-
-    /**
-     * Download Recent Customer Ledger File
-     */
-    public function download_recent_cust_ledger_file()
-    {
-        $custId = (int)$this->request->getGet('cust_id');
-        $cust = $this->unifiedMasterService->findCustomerById($custId);
-        $custName = $cust ? $cust['cust_name'] : 'Customer';
-        
-        $filePath = WRITEPATH . 'backup/ledger/customer_ledger/' . $custId . '.xls';
-        if (!file_exists($filePath)) {
-            $filePath = FCPATH . 'backup/ledger/customer_ledger/' . $custId . '.xls';
-        }
-        
-        if (file_exists($filePath)) {
-            return $this->response->download($filePath, null)->setFileName($custName . ' Ledger.xls');
-        }
-        
-        return redirect()->back()->with('error', 'File not found.');
-    }
-
-    /**
-     * Delete Recent Customer Ledger File
-     */
-    public function delete_recent_cust_ledger_file()
-    {
-        $custId = (int)$this->request->getPost('cust_id');
-        $filePath = WRITEPATH . 'backup/ledger/customer_ledger/' . $custId . '.xls';
-        if (!file_exists($filePath)) {
-            $filePath = FCPATH . 'backup/ledger/customer_ledger/' . $custId . '.xls';
-        }
-        
-        if (file_exists($filePath)) {
-            unlink($filePath);
-            return $this->response->setBody('true');
-        }
-        
-        return $this->response->setBody('false');
-    }
-
-    /**
-     * Manage Recent Daily Report Files (CI2 feature)
-     */
-    public function manage_recent_daily_report_file()
-    {
-        $backupDir = WRITEPATH . 'backup/ledger/daily_report/';
-        $altDir    = FCPATH . 'backup/ledger/daily_report/';
-        $remainingFiles = [];
-        
-        $dirToScan = is_dir($backupDir) ? $backupDir : (is_dir($altDir) ? $altDir : null);
-        if ($dirToScan) {
-            $dh = opendir($dirToScan);
-            if ($dh) {
-                while (($file = readdir($dh)) !== false) {
-                    if ($file !== '.' && $file !== '..') {
-                        if (substr($file, 13, 10) === date('d_m_Y', strtotime('-7 days'))) {
-                            @unlink($dirToScan . $file);
-                        } else {
-                            $remainingFiles[] = $file;
-                        }
-                    }
-                }
-                closedir($dh);
-            }
-        }
-        
-        $data = [
-            'recent_daily_file_data' => $remainingFiles,
-            'title'                  => 'Recent Daily Report File',
-        ];
-        
-        return view('master/recent_file/recent_daily_report_file', $data);
-    }
-
-    /**
-     * Download Recent Daily Report File
-     */
-    public function download_recent_daily_report_file(string $fileName = '')
-    {
-        $fileName = basename($fileName);
-        $filePath = WRITEPATH . 'backup/ledger/daily_report/' . $fileName;
-        if (!file_exists($filePath)) {
-            $filePath = FCPATH . 'backup/ledger/daily_report/' . $fileName;
-        }
-        
-        if (file_exists($filePath)) {
-            return $this->response->download($filePath, null)->setFileName('Daily Report.xls');
-        }
-        
-        return redirect()->back()->with('error', 'File not found.');
-    }
-
-    /**
-     * Delete Recent Daily Report File
-     */
-    public function delete_recent_daily_report_file(string $fileName = '')
-    {
-        $fileName = basename($fileName);
-        $filePath = WRITEPATH . 'backup/ledger/daily_report/' . $fileName;
-        if (!file_exists($filePath)) {
-            $filePath = FCPATH . 'backup/ledger/daily_report/' . $fileName;
-        }
-        
-        if (file_exists($filePath)) {
-            unlink($filePath);
-            return $this->response->setBody('true');
-        }
-        
-        return $this->response->setBody('false');
     }
 }
 

@@ -52,6 +52,43 @@ class ProcessWavesModel extends Model
      * @param array $data
      * @return int Insert ID
      */
+    /**
+     * Execute a callback inside a database transaction (shared by all existing and dynamic processes).
+     * Reuses an active outer transaction if already inside one to prevent nested transaction issues.
+     */
+    public function runInTransaction(callable $callback)
+    {
+        $db = $this->db;
+        $isOwner = ($db->transDepth === 0);
+
+        if ($isOwner) {
+            $db->transBegin();
+        }
+
+        try {
+            $result = $callback($db);
+
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('Database transaction status failed.');
+            }
+
+            if ($isOwner) {
+                $db->transCommit();
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            if ($isOwner && $db->transDepth > 0) {
+                $db->transRollback();
+            }
+            log_message('error', 'ProcessWavesModel::runInTransaction failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Insert process wave record and return insert ID (0 on failure).
+     */
     public function insertProcessWavesData(array $data): int
     {
         if (!isset($data['inner_transfer'])) {
@@ -64,20 +101,70 @@ class ProcessWavesModel extends Model
             $data['locker_stock_check_done'] = '0';
         }
 
-        $this->insert($data);
+        $inserted = $this->insert($data);
+        if ($inserted === false) {
+            return 0;
+        }
+
         return (int) $this->getInsertID();
     }
 
     /**
-     * Update process wave record by condition array or ID.
-     * 
-     * @param array $data
-     * @param array $condition
-     * @return bool
+     * Update process wave record by condition array (supports 'col IN' => [...]).
      */
     public function updateProcessWavesData(array $data, array $condition): bool
     {
-        return (bool) $this->builder()->where($condition)->set($data)->update();
+        $builder = $this->builder();
+        foreach ($condition as $key => $val) {
+            if (is_string($key) && str_ends_with(trim($key), ' IN') && is_array($val)) {
+                $col = trim(substr(trim($key), 0, -3));
+                if (empty($val)) {
+                    return true;
+                }
+                $builder->whereIn($col, $val);
+            } else {
+                $builder->where($key, $val);
+            }
+        }
+
+        return (bool) $builder->set($data)->update();
+    }
+
+    /**
+     * Atomically insert a destination process transfer record and update source/consolidated batches.
+     * Used uniformly by all predefined and dynamically created processes.
+     */
+    public function executeProcessTransfer(array $insertData, ?int $sourceWaveId = null, array $multiBatchIds = []): int
+    {
+        return $this->runInTransaction(function () use ($insertData, $sourceWaveId, $multiBatchIds): int {
+            $newProcessWavesId = $this->insertProcessWavesData($insertData);
+            if ($newProcessWavesId <= 0) {
+                throw new \RuntimeException('Failed to insert destination process_waves record.');
+            }
+
+            if ($sourceWaveId !== null && $sourceWaveId > 0) {
+                $ok = $this->updateProcessWavesData([
+                    'inner_transfer'              => '1',
+                    'further_to_process_waves_id' => $newProcessWavesId,
+                ], ['process_waves_id' => $sourceWaveId]);
+
+                if (!$ok) {
+                    throw new \RuntimeException('Failed to update source process_waves record.');
+                }
+            }
+
+            if (!empty($multiBatchIds)) {
+                $okMulti = $this->updateProcessWavesData([
+                    'further_to_process_waves_id' => $newProcessWavesId,
+                ], ['process_waves_id IN' => $multiBatchIds]);
+
+                if (!$okMulti) {
+                    throw new \RuntimeException('Failed to update consolidated process_waves records.');
+                }
+            }
+
+            return $newProcessWavesId;
+        });
     }
 
     /**

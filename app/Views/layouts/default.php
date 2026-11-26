@@ -68,8 +68,7 @@
             $showAccountMenu      = can_menu('account_master', $userId, $accessLevel);
             $showPermMenu         = can_menu('permission_management', $userId, $accessLevel) || can('permission.superadmin', $userId, $accessLevel);
             $showReportMenu       = can_menu('reports', $userId, $accessLevel);
-            $showRecentFilesMenu  = can_menu('master_recent_files', $userId, $accessLevel);
-            $showMastersSection   = $showMasterMenu || $showSystemMasterMenu || $showAccountMenu || $showPermMenu || $showReportMenu || $showRecentFilesMenu;
+            $showMastersSection   = $showMasterMenu || $showSystemMasterMenu || $showAccountMenu || $showPermMenu || $showReportMenu;
         ?>
 
         <div class="sw-app-wrapper">
@@ -212,10 +211,10 @@
                     </ul>
                     <?php endif; ?>
 
-                    <!-- Masters & Reports Dropdown Sections -->
+                    <!-- Masters Section -->
                     <?php if ($showMastersSection): ?>
-                    <div class="sw-nav-section-title">Masters & Reports</div>
-                    <ul class="sw-nav-list">
+                    <div class="sw-nav-section-title">Masters</div>
+                    <ul class="sw-nav-list" style="padding-bottom: 100px;">
                         <!-- Masters Dropdown -->
                         <?php if ($showMasterMenu): ?>
                         <?php 
@@ -354,44 +353,13 @@
                         </li>
                         <?php endif; ?>
 
-                        <!-- Recent File Dropdown (Separate from Master) -->
-                        <?php if ($showRecentFilesMenu): ?>
-                        <?php $isRecentActive = url_is('master/*recent*') || url_is('master/recent_*'); ?>
-                        <li class="sw-nav-item">
-                            <a href="#menuRecentFile" class="sw-nav-link" data-toggle="collapse" aria-expanded="<?= $isRecentActive ? 'true' : 'false' ?>" style="<?= $isRecentActive ? 'color: #f8fafc;' : '' ?>">
-                                <i class="icon-file-text2"></i>
-                                <span style="flex: 1;">Recent File</span>
-                                <i class="icon-arrow-down5 sw-nav-arrow" style="font-size: 11px; margin-left: auto; transition: transform 0.2s ease-in-out; <?= $isRecentActive ? 'transform: rotate(180deg);' : '' ?>"></i>
-                            </a>
-                            <ul id="menuRecentFile" class="collapse <?= $isRecentActive ? 'in' : '' ?> sw-nav-list" style="padding-left: 12px; margin-top: 2px;">
-                                <?php if (can_menu('recent_cust_ledger', $userId, $accessLevel)): ?>
-                                <li class="sw-nav-item <?= (url_is('master/*recent_cust*') || url_is('master/recent_cust*')) ? 'active' : '' ?>">
-                                    <a href="<?= base_url('master/manage_recent_cust_ledger_file') ?>" class="sw-nav-link" style="padding: 7px 12px; font-size: 13px;">
-                                        <i class="icon-primitive-dot text-muted" style="font-size: 8px; width: 14px;"></i>
-                                        <span>Recent Cust Ledger</span>
-                                    </a>
-                                </li>
-                                <?php endif; ?>
-
-                                <?php if (can_menu('recent_daily_report', $userId, $accessLevel)): ?>
-                                <li class="sw-nav-item <?= (url_is('master/*recent_daily*') || url_is('master/recent_daily*')) ? 'active' : '' ?>">
-                                    <a href="<?= base_url('master/manage_recent_daily_report_file') ?>" class="sw-nav-link" style="padding: 7px 12px; font-size: 13px;">
-                                        <i class="icon-primitive-dot text-muted" style="font-size: 8px; width: 14px;"></i>
-                                        <span>Recent Daily Report</span>
-                                    </a>
-                                </li>
-                                <?php endif; ?>
-                            </ul>
-                        </li>
-                        <?php endif; ?>
-
                         <!-- Reports Dropdown -->
                         <?php if ($showReportMenu): ?>
                         <?php $isReportActive = (url_is('report/cust_wise_report*') || url_is('report/cust-wise-report*') || url_is('report/customer_ledger*') || url_is('report/customer-ledger*') || url_is('report/daily_report*')); ?>
                         <li class="sw-nav-item">
                             <a href="#menuReports" class="sw-nav-link" data-toggle="collapse" aria-expanded="<?= $isReportActive ? 'true' : 'false' ?>" style="<?= $isReportActive ? 'color: #f8fafc;' : '' ?>">
                                 <i class="icon-file-spreadsheet"></i>
-                                <span style="flex: 1;">Report</span>
+                                <span style="flex: 1;">Reports</span>
                                 <i class="icon-arrow-down5 sw-nav-arrow" style="font-size: 11px; margin-left: auto; transition: transform 0.2s ease-in-out; <?= $isReportActive ? 'transform: rotate(180deg);' : '' ?>"></i>
                             </a>
                             <ul id="menuReports" class="collapse <?= $isReportActive ? 'in' : '' ?> sw-nav-list" style="padding-left: 12px; margin-top: 2px;">
@@ -561,6 +529,71 @@
                     closeOnConfirm: false
                 }, function() {
                     window.location.href = href;
+                });
+            });
+
+            // Global Manual UCC Sync Now Handler (All UCC Masters + Sync Status Page)
+            var isUccSyncRunning = false;
+            $(document).on('click', '.js-ucc-sync-now', function(e) {
+                e.preventDefault();
+                if (isUccSyncRunning) return;
+
+                var $btn = $(this);
+                var syncUrl = $btn.data('sync-url') || '<?= base_url('master/ucc-revalidate/sync-now') ?>';
+
+                swal({
+                    title: "Sync UCC Master Data?",
+                    text: "This will fetch the latest master updates from UCC and synchronize them into SpiderWaves.",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#2563eb",
+                    confirmButtonText: "Yes, Sync Now",
+                    cancelButtonText: "Cancel",
+                    closeOnConfirm: false,
+                    showLoaderOnConfirm: true
+                }, function(isConfirm) {
+                    if (!isConfirm || isUccSyncRunning) return;
+                    isUccSyncRunning = true;
+
+                    var $allBtns = $('.js-ucc-sync-now');
+                    var originalHtml = $btn.html();
+                    $allBtns.prop('disabled', true);
+                    $btn.html('<i class="icon-spinner2 spinner"></i> <span>Syncing...</span>');
+
+                    $.ajax({
+                        url: syncUrl,
+                        type: 'POST',
+                        dataType: 'json',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        success: function(resp) {
+                            isUccSyncRunning = false;
+                            $allBtns.prop('disabled', false);
+                            $btn.html(originalHtml);
+
+                            if (resp && resp.status === 'success') {
+                                swal({
+                                    title: "Sync Complete",
+                                    text: resp.message || "UCC master data synchronized successfully.",
+                                    type: "success",
+                                    confirmButtonColor: "#2563eb"
+                                }, function() {
+                                    location.reload();
+                                });
+                            } else {
+                                swal("Sync Failed", (resp && resp.message) ? resp.message : "Unable to synchronize UCC master data.", "error");
+                            }
+                        },
+                        error: function(xhr) {
+                            isUccSyncRunning = false;
+                            $allBtns.prop('disabled', false);
+                            $btn.html(originalHtml);
+
+                            var err = (xhr.responseJSON && xhr.responseJSON.message)
+                                ? xhr.responseJSON.message
+                                : "Server error while synchronizing UCC master data.";
+                            swal("Sync Failed", err, "error");
+                        }
+                    });
                 });
             });
 

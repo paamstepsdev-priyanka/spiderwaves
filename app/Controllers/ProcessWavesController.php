@@ -58,9 +58,14 @@ class ProcessWavesController extends BaseController
     public function index()
     {
         $session = session()->get('spider') ?? [];
+        $userId = !empty($session['user_id']) ? (int)$session['user_id'] : null;
         $accessLevel = $session['access_level'] ?? '';
-        $navAccounts = $this->accountModel->getProcessNavigationAccounts($accessLevel);
-        $firstKey = !empty($navAccounts) ? $navAccounts[0]['private_key'] : '80f372f8dffb5126736fa8c02a24c9fa';
+        $navAccounts = $this->accountModel->getProcessNavigationAccounts($accessLevel, $userId);
+        if (empty($navAccounts)) {
+            return redirect()->to(base_url('dashboard'))
+                ->with('error', 'No process departments are assigned to your account.');
+        }
+        $firstKey = $navAccounts[0]['private_key'];
         return redirect()->to(base_url('process-waves/manage/' . $firstKey));
     }
 
@@ -74,6 +79,7 @@ class ProcessWavesController extends BaseController
     public function manage(string $processAccountPrivateKey = '', string $fromAccountPrivateKey = '')
     {
         $session = session()->get('spider') ?? [];
+        $userId = !empty($session['user_id']) ? (int)$session['user_id'] : null;
         $accessLevel = $session['access_level'] ?? '';
 
         // Role authorization check
@@ -113,30 +119,31 @@ class ProcessWavesController extends BaseController
 
         $account = $this->accountModel->getAccountByPrivateKey($processAccountPrivateKey);
         if (!$account) {
-            // Default to first permitted stage based on role
-            if ($accessLevel === 'jr_process_manager') {
-                $account = $this->accountModel->getAccountById(AccountModel::PACKING_ID);
-            } elseif ($accessLevel === 'g58') {
-                $account = $this->accountModel->getAccountById(AccountModel::G58_POLISH_ID);
+            $permittedAccounts = $this->accountModel->getProcessNavigationAccounts($accessLevel, $userId);
+            if (!empty($permittedAccounts)) {
+                $account = $permittedAccounts[0];
             } else {
-                $account = $this->accountModel->getAccountById(AccountModel::CASTING_ID);
+                return redirect()->to(base_url('dashboard'))
+                    ->with('error', 'No process departments are assigned to your account.');
             }
         }
 
         $accountId = (int) $account['account_id'];
 
-        // Stage-level authorization enforcement
-        if ($accessLevel === 'jr_process_manager') {
-            $allowedJrIds = [AccountModel::PACKING_ID, AccountModel::TRANSFER_PACKING_ID, AccountModel::RODIUM_ID];
-            if (!in_array($accountId, $allowedJrIds, true)) {
-                return redirect()->to(base_url('process-waves/manage/' . AccountModel::PACKING_PRIVATE_KEY))
-                    ->with('error', 'Unauthorized process stage for Jr. Process Manager.');
-            }
-        } elseif ($accessLevel === 'g58') {
-            $allowedG58Ids = [AccountModel::G58_POLISH_ID, AccountModel::G58_FILING_ID, AccountModel::G58_SETTING_ID, AccountModel::G58_TRANSFER_ID];
-            if (!in_array($accountId, $allowedG58Ids, true)) {
-                return redirect()->to(base_url('process-waves/manage/' . AccountModel::G58_POLISH_PRIVATE_KEY))
-                    ->with('error', 'Unauthorized process stage for G58.');
+        // Department-level RBAC enforcement for all non-superadmin users (blocks direct URL bypass)
+        if ($accessLevel !== 'superadmin') {
+            $hasDeptAccess = function_exists('can')
+                ? can("process_waves.dept_{$accountId}", $userId, $accessLevel)
+                : true;
+
+            if (!$hasDeptAccess) {
+                $permittedAccounts = $this->accountModel->getProcessNavigationAccounts($accessLevel, $userId);
+                if (!empty($permittedAccounts) && (int)$permittedAccounts[0]['account_id'] !== $accountId) {
+                    return redirect()->to(base_url('process-waves/manage/' . $permittedAccounts[0]['private_key']))
+                        ->with('error', 'You do not have permission to access ' . $account['account_name'] . '.');
+                }
+                return redirect()->to(base_url('dashboard'))
+                    ->with('error', 'You do not have permission to access ' . $account['account_name'] . '.');
             }
         }
 
@@ -268,16 +275,14 @@ class ProcessWavesController extends BaseController
             }
         }
 
-        // Stage-level authorization enforcement
-        if ($accessLevel === 'jr_process_manager') {
-            $allowedJrIds = [AccountModel::PACKING_ID, AccountModel::TRANSFER_PACKING_ID, AccountModel::RODIUM_ID];
-            if ($processAccountId && !in_array((int)$processAccountId, $allowedJrIds, true)) {
-                return '<div class="alert alert-danger p-20">Unauthorized process stage for Jr. Process Manager.</div>';
-            }
-        } elseif ($accessLevel === 'g58') {
-            $allowedG58Ids = [AccountModel::G58_POLISH_ID, AccountModel::G58_FILING_ID, AccountModel::G58_SETTING_ID, AccountModel::G58_TRANSFER_ID];
-            if ($processAccountId && !in_array((int)$processAccountId, $allowedG58Ids, true)) {
-                return '<div class="alert alert-danger p-20">Unauthorized process stage for G58.</div>';
+        // Department-level authorization enforcement for transfer modal
+        $modalUserId = !empty($session['user_id']) ? (int)$session['user_id'] : null;
+        if ($accessLevel !== 'superadmin' && $processAccountId) {
+            $hasDeptAccess = function_exists('can')
+                ? can("process_waves.dept_{$processAccountId}", $modalUserId, $accessLevel)
+                : true;
+            if (!$hasDeptAccess) {
+                return '<div class="alert alert-danger p-20">Unauthorized process stage for your account.</div>';
             }
         }
 
@@ -381,6 +386,16 @@ class ProcessWavesController extends BaseController
                 'status'  => 'false',
                 'message' => 'Invalid source or destination department.'
             ]);
+        }
+
+        // Department-level RBAC check on source department for non-superadmin users
+        if ($accessLevel !== 'superadmin' && $fromId > 0 && $fromId !== AccountModel::STOCK_ID && $fromId !== AccountModel::REFINING_ID) {
+            if (function_exists('can') && !can("process_waves.dept_{$fromId}", $userId, $accessLevel)) {
+                return $this->response->setStatusCode(403)->setJSON([
+                    'status'  => 'false',
+                    'message' => 'Unauthorized: You do not have permission to transfer from this department.'
+                ]);
+            }
         }
 
         // Idempotency Layer: Check if this specific token was already processed successfully
@@ -647,24 +662,13 @@ class ProcessWavesController extends BaseController
                 'remark'                      => $remark ?: null,
             ];
 
-            $newProcessWavesId = $this->processWavesModel->insertProcessWavesData($insertData);
+            $newProcessWavesId = $this->processWavesModel->executeProcessTransfer(
+                $insertData,
+                $processWavesId ? (int) $processWavesId : null,
+                $idArr
+            );
 
-            // Update source batch so it cannot be double-transferred
-            if ($processWavesId) {
-                $this->processWavesModel->updateProcessWavesData([
-                    'inner_transfer'              => '1',
-                    'further_to_process_waves_id' => $newProcessWavesId
-                ], ['process_waves_id' => $processWavesId]);
-            }
-
-            // Handle multi-batch consolidation if multiple IDs passed
-            if (!empty($idArr)) {
-                $this->processWavesModel->updateProcessWavesData([
-                    'further_to_process_waves_id' => $newProcessWavesId
-                ], ['process_waves_id IN' => $idArr]);
-            }
-
-            if ($db->transStatus() === false) {
+            if ($db->transStatus() === false || $newProcessWavesId <= 0) {
                 $db->transRollback();
                 if ($isMySQL) { $db->query("SELECT RELEASE_LOCK(?)", [$lockKey]); }
                 return $this->response->setJSON(['status' => 'false', 'message' => 'Transaction failed. Rolled back.']);
@@ -684,11 +688,14 @@ class ProcessWavesController extends BaseController
                 'process_waves_id' => $newProcessWavesId
             ]);
         } catch (\Throwable $e) {
-            $db->transRollback();
+            if ($db->transDepth > 0) {
+                $db->transRollback();
+            }
             if ($isMySQL) { $db->query("SELECT RELEASE_LOCK(?)", [$lockKey]); }
+            log_message('error', 'ProcessWavesController::insertTransfer failed: ' . $e->getMessage());
             return $this->response->setJSON([
                 'status'  => 'false',
-                'message' => 'Database error: ' . $e->getMessage()
+                'message' => 'Unable to complete process transfer. All changes have been rolled back.'
             ]);
         }
     }
@@ -778,48 +785,61 @@ class ProcessWavesController extends BaseController
 
         $dateTime = $this->request->getPost('end_date_time') ?: date('Y-m-d H:i:s');
 
-        $db = \Config\Database::connect();
-        $db->transBegin();
-
         try {
-            // 1. Set stock_inner_transfer = '1' for all pending items
-            $this->processWavesModel->updateProcessWavesData(
-                ['stock_inner_transfer' => '1'],
-                ['stock_inner_transfer' => '0']
-            );
-
-            // 2. Exact CI2 parity: preserve pending items in Locker (to_id = 1 and further_to_process_waves_id IS NULL)
-            $pendingLockerWaves = $this->processWavesModel
-                ->where('to_id', AccountModel::STOCK_ID)
-                ->where('further_to_process_waves_id IS NULL')
-                ->findAll();
-
-            if (!empty($pendingLockerWaves)) {
-                foreach ($pendingLockerWaves as $obj) {
-                    $this->processWavesModel->updateProcessWavesData(
-                        ['stock_inner_transfer' => (string) $obj['inner_transfer']],
-                        ['process_waves_id' => $obj['process_waves_id']]
-                    );
+            $this->processWavesModel->runInTransaction(function () use ($dateTime): void {
+                // 1. Set stock_inner_transfer = '1' for all pending items
+                $ok1 = $this->processWavesModel->updateProcessWavesData(
+                    ['stock_inner_transfer' => '1'],
+                    ['stock_inner_transfer' => '0']
+                );
+                if (!$ok1) {
+                    throw new \RuntimeException('Failed to update pending stock_inner_transfer records.');
                 }
-            }
 
-            // 3. Insert into stock_point
-            $stockPointId = $this->stockPointModel->insertStockPoint($dateTime);
+                // 2. Exact CI2 parity: preserve pending items in Locker (to_id = 1 and further_to_process_waves_id IS NULL)
+                $pendingLockerWaves = $this->processWavesModel
+                    ->where('to_id', AccountModel::STOCK_ID)
+                    ->where('further_to_process_waves_id IS NULL')
+                    ->findAll();
 
-            // 4. Insert closing balance snapshot for Locker
-            $this->stockPointModel->insertClosingBalance($stockPointId, AccountModel::STOCK_ID, 0.0);
+                if (!empty($pendingLockerWaves)) {
+                    foreach ($pendingLockerWaves as $obj) {
+                        $ok2 = $this->processWavesModel->updateProcessWavesData(
+                            ['stock_inner_transfer' => (string) $obj['inner_transfer']],
+                            ['process_waves_id' => $obj['process_waves_id']]
+                        );
+                        if (!$ok2) {
+                            throw new \RuntimeException('Failed to preserve locker stock_inner_transfer record.');
+                        }
+                    }
+                }
 
-            // 4. Update session start date time
+                // 3. Insert into stock_point
+                $stockPointId = $this->stockPointModel->insertStockPoint($dateTime);
+                if ($stockPointId <= 0) {
+                    throw new \RuntimeException('Failed to insert stock_point checkpoint.');
+                }
+
+                // 4. Insert closing balance snapshot for Locker
+                $closingId = $this->stockPointModel->insertClosingBalance($stockPointId, AccountModel::STOCK_ID, 0.0);
+                if ($closingId <= 0) {
+                    throw new \RuntimeException('Failed to insert closing_balance snapshot.');
+                }
+            });
+
+            // Update session only AFTER database transaction commits
             $session = session();
             $spider = $session->get('spider');
             $spider['stock_point_start_date_time'] = $dateTime;
             $session->set('spider', $spider);
 
-            $db->transCommit();
             return $this->response->setJSON(['status' => 'true']);
         } catch (\Throwable $e) {
-            $db->transRollback();
-            return $this->response->setJSON(['status' => 'false', 'message' => $e->getMessage()]);
+            log_message('error', 'ProcessWavesController::insertStockCheckPoint failed: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'status'  => 'false',
+                'message' => 'Unable to save stock checkpoint. All changes have been rolled back.'
+            ]);
         }
     }
 

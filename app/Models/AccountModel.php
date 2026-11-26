@@ -270,21 +270,19 @@ class AccountModel extends Model
             $accountMap[(int)$acc['account_id']] = $acc;
         }
 
-        // Determine allowed department IDs
+        // Determine allowed department IDs strictly via RBAC for all non-superadmin users
         $allowedIds = [];
-        if ($accessLevel === 'superadmin' || $accessLevel === 'admin' || $accessLevel === 'process_manager') {
+        if ($accessLevel === 'superadmin') {
             $allowedIds = array_keys($accountMap);
         } elseif (function_exists('can')) {
-            // Check dynamic RBAC permission for each department
+            // Check dynamic RBAC permission (role + user overrides) for each department
             foreach ($accountMap as $deptId => $acc) {
                 if (can("process_waves.dept_{$deptId}", $userId, $accessLevel)) {
                     $allowedIds[] = $deptId;
                 }
             }
-        }
-
-        // Fallback to static role rules if RBAC returned nothing or not initialized
-        if (empty($allowedIds) && !empty($accessLevel) && $accessLevel !== 'superadmin') {
+        } elseif (!empty($accessLevel)) {
+            // Fallback only if RBAC helper is unavailable
             if ($accessLevel === 'jr_process_manager') {
                 $allowedIds = [self::PACKING_ID, self::TRANSFER_PACKING_ID, self::RODIUM_ID];
             } elseif ($accessLevel === 'g58') {

@@ -94,15 +94,14 @@ class PermissionController extends BaseController
             'name'         => 'Master',
             'icon'         => 'icon-gear',
             'color'        => '#475569',
-            'description'  => 'Loss percentage, remark, recent files, and user master settings',
+            'description'  => 'Loss percentage, petty cash, remark, and user master settings',
             'primary_menu' => 'masters',
             'primary_perm' => 'loss_percentage.view',
-            'menus'        => ['masters', 'master_loss_percentage', 'master_petty_cash', 'master_remark', 'master_recent_files', 'recent_cust_ledger', 'recent_daily_report', 'master_user'],
+            'menus'        => ['masters', 'master_loss_percentage', 'master_petty_cash', 'master_remark', 'master_user'],
             'permissions'  => [
                 'loss_percentage.view', 'loss_percentage.edit',
                 'petty_cash.view', 'petty_cash.create', 'petty_cash.edit', 'petty_cash.toggle',
                 'remark.view', 'remark.create', 'remark.edit', 'remark.toggle',
-                'recent_files.view', 'recent_files.delete',
                 'user_master.view', 'user_master.create', 'user_master.edit', 'user_master.view_details', 'user_master.toggle',
             ],
         ],
@@ -855,14 +854,6 @@ class PermissionController extends BaseController
                             'remark.create',
                             'remark.edit',
                             'remark.toggle',
-                        ],
-                    ],
-                    'recent_files' => [
-                        'key'   => 'recent_files',
-                        'title' => 'Recent Files Repository',
-                        'codes' => [
-                            'recent_files.view',
-                            'recent_files.delete',
                         ],
                     ],
                     'user_master' => [

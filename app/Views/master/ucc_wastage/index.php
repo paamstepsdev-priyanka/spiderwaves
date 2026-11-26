@@ -10,7 +10,7 @@
         <h1>Wastage Master</h1>
     </div>
     <div class="sw-page-actions">
-        <span class="badge badge-primary"><i class="icon-database"></i> UCC Master (Read-Only)</span>
+        <?= view('master/_ucc_header_badges', ['totalAll' => $totalAll ?? null, 'total' => $total ?? 0, 'hasFilters' => $hasFilters ?? false]) ?>
     </div>
 </div>
 
@@ -57,7 +57,7 @@
         <table class="sw-table">
             <thead>
                 <tr>
-                    <th style="width: 10%; text-align: center;">S.No.</th>
+                    <th style="width: 10%; text-align: center;">#</th>
                     <th style="width: 15%; text-align: center;">Wastage ID</th>
                     <th style="width: 25%; text-align: center;">Wastage Percentage (%)</th>
                     <th style="width: 23%;">Last Synced</th>
@@ -67,15 +67,10 @@
             </thead>
             <tbody>
                 <?php if (!empty($wastages)): ?>
-                    <?php
-                        $currentPage = $pager->getCurrentPage() ?: 1;
-                        $perPage     = $pager->getPerPage() ?: 10;
-                        $index       = ($currentPage - 1) * $perPage + 1;
-                    ?>
                     <?php foreach ($wastages as $obj): ?>
                         <tr>
                             <td style="text-align: center; color: var(--sw-text-muted); font-size: 12.5px;">
-                                <?= $index++; ?>
+                                #<?= (int)$obj['wastage_id'] ?>
                             </td>
 
                             <td style="text-align: center; font-weight: 600; color: var(--sw-text-main);">
@@ -131,12 +126,16 @@
         </table>
     </div>
 
-    <!-- Modern Card Pagination Footer -->
-    <?php if ($pager->getPageCount() > 1): ?>
-        <div class="sw-table-footer">
+    <!-- Table Footer with Summary Counter and Pagination -->
+    <div class="sw-table-footer">
+        <div style="font-size: 13px; color: var(--sw-text-muted);">
+            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= max(1, $pager->getPageCount()) ?></strong>
+            (<strong><?= (int)($total ?? $pager->getTotal()) ?></strong> total records)
+        </div>
+        <div>
             <?= $pager->links('default', 'modern') ?>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
 <?= $this->endSection() ?>
 

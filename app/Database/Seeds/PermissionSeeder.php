@@ -281,9 +281,6 @@ class PermissionSeeder extends Seeder
             ['menu_code' => 'master_loss_percentage', 'parent_code' => 'masters', 'title' => 'Loss Percentage', 'url' => 'master/loss_percentage', 'icon' => 'icon-primitive-dot', 'order_no' => 1, 'module_key' => 'loss_percentage'],
             ['menu_code' => 'master_petty_cash', 'parent_code' => 'masters', 'title' => 'Petty Cash Cust', 'url' => 'master/petty-cash', 'icon' => 'icon-primitive-dot', 'order_no' => 2, 'module_key' => 'petty_cash'],
             ['menu_code' => 'master_remark', 'parent_code' => 'masters', 'title' => 'Remark', 'url' => 'master/remark', 'icon' => 'icon-primitive-dot', 'order_no' => 3, 'module_key' => 'remark_master'],
-            ['menu_code' => 'master_recent_files', 'parent_code' => 'masters', 'title' => 'Recent File', 'url' => '#menuRecentFile', 'icon' => 'icon-primitive-dot', 'order_no' => 4, 'module_key' => 'recent_files'],
-            ['menu_code' => 'recent_cust_ledger', 'parent_code' => 'master_recent_files', 'title' => 'Recent Cust Ledger', 'url' => 'master/manage_recent_cust_ledger_file', 'icon' => 'icon-primitive-dot', 'order_no' => 1, 'module_key' => 'recent_files'],
-            ['menu_code' => 'recent_daily_report', 'parent_code' => 'master_recent_files', 'title' => 'Recent Daily Report', 'url' => 'master/manage_recent_daily_report_file', 'icon' => 'icon-primitive-dot', 'order_no' => 2, 'module_key' => 'recent_files'],
             ['menu_code' => 'master_user', 'parent_code' => 'masters', 'title' => 'User', 'url' => 'master/user', 'icon' => 'icon-primitive-dot', 'order_no' => 5, 'module_key' => 'user_master'],
 
             // SYSTEM MASTER SECTION (UCC Master Data)
@@ -537,10 +534,6 @@ class PermissionSeeder extends Seeder
             ['module_key' => 'remark_master', 'permission_code' => 'remark.edit', 'permission_name' => 'Edit Remark Record', 'permission_type' => 'button', 'action_key' => 'edit', 'menu_code' => 'master_remark'],
             ['module_key' => 'remark_master', 'permission_code' => 'remark.toggle', 'permission_name' => 'Toggle Remark Status', 'permission_type' => 'button', 'action_key' => 'toggle', 'menu_code' => 'master_remark'],
 
-            // Recent Files
-            ['module_key' => 'recent_files', 'permission_code' => 'recent_files.view', 'permission_name' => 'View & Download Recent Report Files', 'permission_type' => 'page', 'action_key' => 'view', 'menu_code' => 'master_recent_files'],
-            ['module_key' => 'recent_files', 'permission_code' => 'recent_files.delete', 'permission_name' => 'Delete Recent Report Files', 'permission_type' => 'button', 'action_key' => 'delete', 'menu_code' => 'master_recent_files'],
-
             // User Master
             ['module_key' => 'user_master', 'permission_code' => 'user_master.view', 'permission_name' => 'View User Master List', 'permission_type' => 'page', 'action_key' => 'view', 'menu_code' => 'master_user'],
             ['module_key' => 'user_master', 'permission_code' => 'user_master.create', 'permission_name' => 'Create New User Account', 'permission_type' => 'button', 'action_key' => 'create', 'menu_code' => 'master_user'],
@@ -661,7 +654,7 @@ class PermissionSeeder extends Seeder
             'main_dashboard', 'ops_waves', 'ops_process',
             'proc_casting', 'proc_filing', 'proc_heera_light', 'proc_polish', 'proc_g58_polish', 'proc_g58_filing', 'proc_g58_setting', 'proc_g58_transfer',
             'proc_po_check', 'proc_galai', 'proc_tash', 'proc_sapphire', 'proc_cnc', 'proc_setting', 'proc_zero_balance',
-            'masters', 'master_customer', 'master_customer_mapping', 'master_collection', 'master_loss_percentage', 'master_petty_cash', 'master_remark', 'master_recent_files', 'recent_cust_ledger', 'recent_daily_report', 'master_user',
+            'masters', 'master_customer', 'master_customer_mapping', 'master_collection', 'master_loss_percentage', 'master_petty_cash', 'master_remark', 'master_user',
             'reports', 'report_daily', 'navbar_pending_badge', 'navbar_profile_menu'
         ];
         $adminPerms = [
@@ -675,7 +668,6 @@ class PermissionSeeder extends Seeder
             'loss_percentage.view', 'loss_percentage.edit',
             'petty_cash.view', 'petty_cash.create', 'petty_cash.edit', 'petty_cash.toggle',
             'remark.view', 'remark.create', 'remark.edit', 'remark.toggle',
-            'recent_files.view', 'recent_files.delete',
             'user_master.view', 'user_master.create', 'user_master.edit', 'user_master.view_details', 'user_master.toggle',
             'reports.daily_report', 'daily_report.approve'
         ];

@@ -527,7 +527,7 @@
                                     </div>
                                 </td>
                                 <td style="vertical-align: middle; color: var(--sw-text-muted); font-size: 12px;">
-                                    Loss percentage, remark, recent files &amp; user master
+                                    Loss percentage, petty cash, remark &amp; user master
                                 </td>
                                 <td style="text-align: center; vertical-align: middle;">
                                     <div style="display: inline-flex; align-items: center; gap: 8px;">

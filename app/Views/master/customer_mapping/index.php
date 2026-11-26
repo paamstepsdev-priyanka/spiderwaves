@@ -10,7 +10,7 @@
         <h1>Mapped Customer</h1>
     </div>
     <div class="sw-page-actions">
-        <span class="badge badge-primary"><i class="icon-database"></i> UCC Master (Read-Only)</span>
+        <?= view('master/_ucc_header_badges', ['totalAll' => $totalAll ?? null, 'total' => $total ?? 0, 'hasFilters' => $hasFilters ?? false]) ?>
     </div>
 </div>
 
@@ -118,28 +118,22 @@
         <table class="sw-table">
             <thead>
                 <tr>
-                    <th style="width: 5%; text-align: center;">S.No.</th>
-                    <th style="width: 18%;">Mapped Name</th>
-                    <th style="width: 20%;">Private Key</th>
-                    <th style="width: 19%;">Customer Name</th>
-                    <th style="width: 10%; text-align: center;">Purity (%)</th>
-                    <th style="width: 12%;">Collection</th>
-                    <th style="width: 8%; text-align: center;">Status</th>
-                    <th style="width: 8%; text-align: center;">Action</th>
+                    <th style="width: 6%; text-align: center;">#</th>
+                    <th style="width: 24%;">Mapped Name</th>
+                    <th style="width: 24%;">Customer Name</th>
+                    <th style="width: 12%; text-align: center;">Purity (%)</th>
+                    <th style="width: 16%;">Collection</th>
+                    <th style="width: 9%; text-align: center;">Status</th>
+                    <th style="width: 9%; text-align: center;">Action</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (!empty($mappings)): ?>
-                    <?php
-                        $currentPage = $pager->getCurrentPage() ?: 1;
-                        $perPage     = $pager->getPerPage() ?: 10;
-                        $index       = ($currentPage - 1) * $perPage + 1;
-                    ?>
                     <?php foreach ($mappings as $obj): ?>
                         <tr>
-                            <!-- S.No -->
+                            <!-- Primary Key ID -->
                             <td style="text-align: center; color: var(--sw-text-muted); font-size: 12.5px;">
-                                <?= $index++; ?>
+                                #<?= (int)$obj['mapped_cust_id'] ?>
                             </td>
 
                             <!-- Mapped Name -->
@@ -149,18 +143,10 @@
                                 </div>
                             </td>
 
-                            <!-- Private Key -->
-                            <td>
-                                <code style="font-size: 11px;"><?= esc($obj['private_key'] ?? '-') ?></code>
-                            </td>
-
                             <!-- Customer Name -->
                             <td>
                                 <div style="font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.25;">
                                     <?= esc($obj['cust_name'] ?? '—') ?>
-                                </div>
-                                <div style="font-size: 11px; color: var(--sw-text-muted); line-height: 1; margin-top: 1px;">
-                                    Cust ID #<?= (int)$obj['cust_id'] ?>
                                 </div>
                             </td>
 
@@ -200,7 +186,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="8" style="text-align: center; padding: 48px 20px;">
+                        <td colspan="7" style="text-align: center; padding: 48px 20px;">
                             <div style="font-size: 36px; color: var(--sw-text-subtle); margin-bottom: 12px;">
                                 <i class="icon-search4"></i>
                             </div>
@@ -220,12 +206,16 @@
         </table>
     </div>
 
-    <!-- Modern Card Pagination Footer -->
-    <?php if ($pager->getPageCount() > 1): ?>
-        <div class="sw-table-footer">
+    <!-- Table Footer with Summary Counter and Pagination -->
+    <div class="sw-table-footer">
+        <div style="font-size: 13px; color: var(--sw-text-muted);">
+            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= max(1, $pager->getPageCount()) ?></strong>
+            (<strong><?= (int)($total ?? $pager->getTotal()) ?></strong> total records)
+        </div>
+        <div>
             <?= $pager->links('default', 'modern') ?>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
 
 <!-- Excel Bulk Import Modal -->

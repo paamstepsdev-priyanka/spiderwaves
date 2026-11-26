@@ -10,7 +10,7 @@ $isEdit = ($form_type === 'Edit');
 $isTransfer = ($form_type === 'transfer_to_cust');
 $currentGross = $isEdit && !empty($waves_data[0]['gross_weight']) ? $waves_data[0]['gross_weight'] : ($isTransfer ? '' : ($gross_weight ?? ''));
 $currentNet   = $isEdit && !empty($waves_data[0]['net_weight']) ? $waves_data[0]['net_weight'] : ($gross_weight ?? '');
-$currentDelBy = $isEdit && !empty($waves_data[0]['delivery_by']) ? $waves_data[0]['delivery_by'] : ($session['user'] ?? '');
+$currentDelBy = $isEdit && !empty($waves_data[0]['delivery_by']) ? $waves_data[0]['delivery_by'] : '';
 $currentRemark = $isEdit && !empty($waves_data[0]['remark']) ? $waves_data[0]['remark'] : '';
 ?>
 
@@ -174,11 +174,36 @@ $currentRemark = $isEdit && !empty($waves_data[0]['remark']) ? $waves_data[0]['r
         </div>
 
         <div class="row">
-            <!-- Tnch (Purity - Readonly) -->
+            <!-- Tnch (Purity Dropdown from Purity Master) -->
             <div class="col-sm-6">
                 <div class="sw-form-group">
                     <label class="sw-label">Tnch <span class="req">*</span></label>
-                    <input type="number" step="0.01" class="sw-input" style="padding-left: 14px; background-color: var(--sw-surface-alt);" name="purity" id="purity" placeholder="Tnch" value="<?= esc($purity !== '' && is_numeric($purity) ? (float)$purity : $purity) ?>" readonly required>
+                    <select name="purity" id="purity" class="select2" style="width: 100%;" required>
+                        <option value="">Select Purity</option>
+                        <?php
+                            $currPurity = (float)($purity ?? 0);
+                            $matched = false;
+                            if (!empty($active_purities)):
+                                foreach ($active_purities as $p):
+                                    $valStr = number_format((float)$p['purity_value'], 2, '.', '');
+                                    $isSel = ($currPurity > 0 && round($currPurity, 2) == round((float)$p['purity_value'], 2));
+                                    if ($isSel) {
+                                        $matched = true;
+                                    }
+                        ?>
+                            <option value="<?= $valStr ?>" <?= $isSel ? 'selected' : '' ?>>
+                                <?= esc($p['purity_name']) ?> (<?= $valStr ?>%)
+                            </option>
+                        <?php
+                                endforeach;
+                            endif;
+                        ?>
+                        <?php if ($currPurity > 0 && !$matched): ?>
+                            <option value="<?= number_format($currPurity, 2, '.', '') ?>" selected>
+                                <?= number_format($currPurity, 2, '.', '') ?>% (Current)
+                            </option>
+                        <?php endif; ?>
+                    </select>
                 </div>
             </div>
 
@@ -333,6 +358,10 @@ $(document).ready(function() {
             placeholder: "Select Remark",
             allowClear: true
         });
+        $('#purity').select2({
+            placeholder: "Select Purity",
+            allowClear: true
+        });
     }
 
     // Mapped Customer Selection Change -> Resolve Customer Name, Collection, Wastage, Tnch
@@ -341,7 +370,7 @@ $(document).ready(function() {
         if (!mId) {
             $('#show_cust_name').val('');
             $('#collection_name').val('');
-            $('#purity').val('');
+            $('#purity').val('').trigger('change');
             $('#wastage').val('');
             return;
         }
@@ -351,9 +380,19 @@ $(document).ready(function() {
             $('#show_cust_name').val(res).trigger('change');
         });
 
-        // 2. Get Tnch (Purity)
+        // 2. Get Tnch (Purity) and select matching Purity Master option
         $.post(base_url + 'master/get_mapped_cust_purity_by_mapped_cust_id', { mapped_cust_id: mId }, function(res) {
-            $('#purity').val(res).trigger('change');
+            var num = parseFloat(res);
+            if (!isNaN(num) && num > 0) {
+                var valStr = num.toFixed(2);
+                var $puritySel = $('#purity');
+                if ($puritySel.find('option[value="' + valStr + '"]').length === 0) {
+                    $puritySel.append(new Option(valStr + '%', valStr, true, true));
+                }
+                $puritySel.val(valStr).trigger('change');
+            } else {
+                $('#purity').val('').trigger('change');
+            }
         });
 
         // 3. Get Collection Name

@@ -230,16 +230,6 @@ $routes->group('master', ['filter' => ['auth', 'role:admin,superadmin']], static
     $routes->get('edit_remark/(:segment)', 'MasterController::edit_remark/$1');
     $routes->post('insert_remark', 'MasterController::insert_remark');
 
-    // Recent File routes (CI2 parity)
-    $routes->get('manage_recent_cust_ledger_file', 'MasterController::manage_recent_cust_ledger_file');
-    $routes->get('recent_cust_ledger', 'MasterController::manage_recent_cust_ledger_file');
-    $routes->get('download_recent_cust_ledger_file', 'MasterController::download_recent_cust_ledger_file');
-    $routes->post('delete_recent_cust_ledger_file', 'MasterController::delete_recent_cust_ledger_file');
-    $routes->get('manage_recent_daily_report_file', 'MasterController::manage_recent_daily_report_file');
-    $routes->get('recent_daily_report', 'MasterController::manage_recent_daily_report_file');
-    $routes->get('download_recent_daily_report_file/(:any)', 'MasterController::download_recent_daily_report_file/$1');
-    $routes->post('delete_recent_daily_report_file/(:any)', 'MasterController::delete_recent_daily_report_file/$1');
-
     // Account Master & Department Mapping routes (Superadmin by default, grantable via Permissions)
     $routes->get('account', 'AccountController::index', ['filter' => ['auth', 'permission:account_master.view']]);
     $routes->get('account/create', 'AccountController::create', ['filter' => ['auth', 'permission:account_master.create']]);

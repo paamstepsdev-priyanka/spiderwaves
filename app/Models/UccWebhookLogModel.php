@@ -27,7 +27,8 @@ class UccWebhookLogModel extends Model
     protected $useTimestamps = false;
 
     /**
-     * Check if a non-test webhook for the same master_version is already pending or successfully processed.
+     * Check if a non-test webhook for the same master_version is already pending manual sync or successfully synced.
+     * Failed rows do NOT block retries.
      */
     public function isDuplicateVersion(string $masterVersion): bool
     {
@@ -42,15 +43,74 @@ class UccWebhookLogModel extends Model
     }
 
     /**
-     * Update a webhook log entry after background sync completes or fails.
+     * Count all non-test webhook notifications currently pending manual sync.
      */
-    public function markResult(int $logId, string $status, ?string $errorDetails = null): bool
+    public function countPending(): int
     {
-        return $this->update($logId, [
+        return (int)$this->where('is_test', 0)
+            ->where('processing_status', 'pending')
+            ->countAllResults();
+    }
+
+    /**
+     * Update all pending (and on success, previously failed) non-test webhook notifications
+     * after a manual Sync Now run completes or fails.
+     */
+    public function markAllPendingResult(string $status, ?string $errorDetails = null): int
+    {
+        $now = date('Y-m-d H:i:s');
+        $affected = 0;
+
+        $this->where('is_test', 0)
+            ->where('processing_status', 'pending')
+            ->set([
+                'processing_status' => $status,
+                'error_details'     => $errorDetails,
+                'processed_at'      => $now,
+            ])
+            ->update();
+        $affected += (int)$this->db->affectedRows();
+
+        if ($status === 'success') {
+            $this->where('is_test', 0)
+                ->where('processing_status', 'failed')
+                ->where('http_status', 200)
+                ->set([
+                    'processing_status' => 'success',
+                    'error_details'     => 'Resolved by manual sync.',
+                    'processed_at'      => $now,
+                ])
+                ->update();
+            $affected += (int)$this->db->affectedRows();
+        }
+
+        return $affected;
+    }
+
+    /**
+     * Update a webhook log entry after sync completes or fails.
+     */
+    public function markResult(int $logId, string $status, ?string $errorDetails = null, ?int $httpStatus = null): bool
+    {
+        $data = [
             'processing_status' => $status,
             'error_details'     => $errorDetails,
             'processed_at'      => date('Y-m-d H:i:s'),
-        ]);
+        ];
+
+        if ($httpStatus !== null) {
+            $data['http_status'] = $httpStatus;
+        }
+
+        return $this->update($logId, $data);
+    }
+
+    /**
+     * Fetch recent webhook deliveries for local status monitoring.
+     */
+    public function getRecentLogs(int $limit = 15): array
+    {
+        return $this->orderBy('log_id', 'DESC')->findAll(max(1, $limit));
     }
 }
 

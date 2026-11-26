@@ -10,7 +10,7 @@
         <h1>Customer Master</h1>
     </div>
     <div class="sw-page-actions">
-        <span class="badge badge-primary"><i class="icon-database"></i> UCC Master (Read-Only)</span>
+        <?= view('master/_ucc_header_badges', ['totalAll' => $totalAll ?? null, 'total' => $total ?? 0, 'hasFilters' => $hasFilters ?? false]) ?>
     </div>
 </div>
 
@@ -92,36 +92,24 @@
         <table class="sw-table">
             <thead>
                 <tr>
-                    <th style="width: 5%; text-align: center;">S.No.</th>
-                    <th style="width: 28%;">Customer Name</th>
-                    <th style="width: 27%;">Private Key</th>
-                    <th style="width: 14%;">Type</th>
-                    <th style="width: 13%;">Status</th>
-                    <th style="width: 13%; text-align: center;">Action</th>
+                    <th style="width: 8%; text-align: center;">#</th>
+                    <th style="width: 52%;">Customer Name</th>
+                    <th style="width: 20%;">Type</th>
+                    <th style="width: 20%;">Status</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (!empty($customers)): ?>
-                    <?php
-                        $currentPage = $pager->getCurrentPage() ?: 1;
-                        $perPage     = $pager->getPerPage() ?: 10;
-                        $index       = ($currentPage - 1) * $perPage + 1;
-                    ?>
                     <?php foreach ($customers as $obj): ?>
                         <tr>
-                            <!-- S.No -->
+                            <!-- Primary Key ID -->
                             <td style="text-align: center; color: var(--sw-text-muted); font-size: 13px;">
-                                <?= $index++; ?>
+                                #<?= (int)$obj['cust_id'] ?>
                             </td>
 
                             <!-- Customer Name -->
                             <td>
                                 <div class="sw-cust-name"><?= esc($obj['cust_name']) ?></div>
-                            </td>
-
-                            <!-- Private Key -->
-                            <td>
-                                <code style="font-size: 11.5px;"><?= esc($obj['private_key'] ?? '-') ?></code>
                             </td>
 
                             <!-- Type Pill Badge -->
@@ -150,28 +138,11 @@
                                 <?php endif; ?>
                             </td>
 
-                            <!-- Actions -->
-                            <td style="text-align: center;">
-                                <?php if ($obj['cust_name'] !== 'Stone'): ?>
-                                    <div class="sw-action-buttons">
-                                        <!-- Set Wastage -->
-                                        <?php if (can('customer.wastage')): ?>
-                                        <a href="<?= base_url('master/customer_wastage_mapping/' . $obj['private_key']) ?>" class="sw-icon-btn wastage" title="Set Customer Wastage">
-                                            <i class="icon-tab"></i>
-                                        </a>
-                                        <?php else: ?>
-                                        <span class="text-muted"><i class="icon-lock2"></i> Read-Only</span>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-muted">System Protected</span>
-                                <?php endif; ?>
-                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 48px 20px; color: var(--sw-text-muted);">
+                        <td colspan="4" style="text-align: center; padding: 48px 20px; color: var(--sw-text-muted);">
                             <i class="icon-search4" style="font-size: 32px; color: var(--sw-text-subtle); display: block; margin-bottom: 8px;"></i>
                             <div style="font-weight: 600; font-size: 14px;">No customer records found</div>
                             <div style="font-size: 12px; margin-top: 4px;">Try modifying your keyword search or filter criteria</div>
@@ -185,7 +156,8 @@
     <!-- Table Footer with Summary Counter and Pagination -->
     <div class="sw-table-footer">
         <div style="font-size: 13px; color: var(--sw-text-muted);">
-            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= $pager->getPageCount() ?></strong>
+            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= max(1, $pager->getPageCount()) ?></strong>
+            (<strong><?= (int)($total ?? $pager->getTotal()) ?></strong> total records)
         </div>
         <div>
             <?= $pager->links('default', 'modern') ?>

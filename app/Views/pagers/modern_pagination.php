@@ -16,7 +16,7 @@ $pager->setSurroundCount(2);
         </li>
         <li>
             <a href="<?= $pager->getPrevious() ?>" aria-label="Previous" title="Previous Page">
-                <i class="icon-arrow-left7"></i>
+                <i class="icon-arrow-left7"></i> Previous
             </a>
         </li>
     <?php endif ?>
@@ -32,7 +32,7 @@ $pager->setSurroundCount(2);
     <?php if ($pager->hasNext()) : ?>
         <li>
             <a href="<?= $pager->getNext() ?>" aria-label="Next" title="Next Page">
-                <i class="icon-arrow-right7"></i>
+                Next <i class="icon-arrow-right7"></i>
             </a>
         </li>
         <li>

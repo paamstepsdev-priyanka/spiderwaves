@@ -10,7 +10,7 @@
         <h1>Purity Master</h1>
     </div>
     <div class="sw-page-actions">
-        <span class="badge badge-primary"><i class="icon-database"></i> UCC Master (Read-Only)</span>
+        <?= view('master/_ucc_header_badges', ['totalAll' => $totalAll ?? null, 'total' => $total ?? 0, 'hasFilters' => $hasFilters ?? false]) ?>
     </div>
 </div>
 
@@ -75,25 +75,21 @@
         <table class="sw-table">
             <thead>
                 <tr>
-                    <th style="width: 8%; text-align: center;">S.No.</th>
-                    <th style="width: 42%;">Purity Name / Label</th>
-                    <th style="width: 25%; text-align: center;">Purity Value (%)</th>
-                    <th style="width: 12%; text-align: center;">Status</th>
-                    <th style="width: 13%; text-align: center;">Action</th>
+                    <th style="width: 7%; text-align: center;">#</th>
+                    <th style="width: 33%;">Purity Name / Label</th>
+                    <th style="width: 20%; text-align: center;">Purity Value (%)</th>
+                    <th style="width: 17%; text-align: center;">Gold Multiplier</th>
+                    <th style="width: 11%; text-align: center;">Status</th>
+                    <th style="width: 12%; text-align: center;">Action</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (!empty($purities)): ?>
-                    <?php
-                        $currentPage = $pager->getCurrentPage() ?: 1;
-                        $perPage     = $pager->getPerPage() ?: 10;
-                        $index       = ($currentPage - 1) * $perPage + 1;
-                    ?>
                     <?php foreach ($purities as $obj): ?>
                         <tr>
-                            <!-- S.No -->
+                            <!-- Primary Key ID -->
                             <td style="text-align: center; color: var(--sw-text-muted); font-size: 12.5px;">
-                                <?= $index++; ?>
+                                #<?= (int)$obj['purity_id'] ?>
                             </td>
 
                             <!-- Purity Name -->
@@ -107,6 +103,13 @@
                             <td style="text-align: center;">
                                 <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 4px; font-size: 13px; font-weight: 700; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; font-family: monospace;">
                                     <?= number_format((float)$obj['purity_value'], 3) ?>%
+                                </span>
+                            </td>
+
+                            <!-- Gold Multiplier -->
+                            <td style="text-align: center;">
+                                <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: var(--sw-text-main);">
+                                    <?= ($obj['gold_multiplier'] !== null && $obj['gold_multiplier'] !== '') ? number_format((float)$obj['gold_multiplier'], 3) : '—' ?>
                                 </span>
                             </td>
 
@@ -131,7 +134,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 48px 20px;">
+                        <td colspan="6" style="text-align: center; padding: 48px 20px;">
                             <div style="font-size: 36px; color: var(--sw-text-subtle); margin-bottom: 12px;">
                                 <i class="icon-search4"></i>
                             </div>
@@ -151,12 +154,16 @@
         </table>
     </div>
 
-    <!-- Modern Card Pagination Footer -->
-    <?php if ($pager->getPageCount() > 1): ?>
-        <div class="sw-table-footer">
+    <!-- Table Footer with Summary Counter and Pagination -->
+    <div class="sw-table-footer">
+        <div style="font-size: 13px; color: var(--sw-text-muted);">
+            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= max(1, $pager->getPageCount()) ?></strong>
+            (<strong><?= (int)($total ?? $pager->getTotal()) ?></strong> total records)
+        </div>
+        <div>
             <?= $pager->links('default', 'modern') ?>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
 <?= $this->endSection() ?>
 

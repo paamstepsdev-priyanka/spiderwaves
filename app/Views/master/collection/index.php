@@ -10,7 +10,7 @@
         <h1>Collection Master</h1>
     </div>
     <div class="sw-page-actions">
-        <span class="badge badge-primary"><i class="icon-database"></i> UCC Master (Read-Only)</span>
+        <?= view('master/_ucc_header_badges', ['totalAll' => $totalAll ?? null, 'total' => $total ?? 0, 'hasFilters' => $hasFilters ?? false]) ?>
     </div>
 </div>
 
@@ -76,7 +76,7 @@
         <table class="sw-table">
             <thead>
                 <tr>
-                    <th style="width: 6%; text-align: center;">S.No.</th>
+                    <th style="width: 6%; text-align: center;">#</th>
                     <th style="width: 65%;">Collection Name</th>
                     <th style="width: 15%; text-align: center;">Status</th>
                     <th style="width: 15%; text-align: center;">Action</th>
@@ -84,16 +84,11 @@
             </thead>
             <tbody>
                 <?php if (!empty($collections)): ?>
-                    <?php
-                        $currentPage = $pager->getCurrentPage() ?: 1;
-                        $perPage     = $pager->getPerPage() ?: 10;
-                        $index       = ($currentPage - 1) * $perPage + 1;
-                    ?>
                     <?php foreach ($collections as $obj): ?>
                         <tr>
-                            <!-- S.No -->
+                            <!-- Primary Key ID -->
                             <td style="text-align: center; color: var(--sw-text-muted); font-size: 12.5px;">
-                                <?= $index++; ?>
+                                #<?= (int)$obj['collection_id'] ?>
                             </td>
 
                             <!-- Collection Name -->
@@ -144,11 +139,15 @@
         </table>
     </div>
 
-    <!-- Modern Card Pagination Footer -->
-    <?php if ($pager->getPageCount() > 1): ?>
-        <div class="sw-table-footer">
+    <!-- Table Footer with Summary Counter and Pagination -->
+    <div class="sw-table-footer">
+        <div style="font-size: 13px; color: var(--sw-text-muted);">
+            Showing page <strong><?= $pager->getCurrentPage() ?></strong> of <strong><?= max(1, $pager->getPageCount()) ?></strong>
+            (<strong><?= (int)($total ?? $pager->getTotal()) ?></strong> total records)
+        </div>
+        <div>
             <?= $pager->links('default', 'modern') ?>
         </div>
-    <?php endif; ?>
+    </div>
 </div>
 <?= $this->endSection() ?>

@@ -432,6 +432,16 @@ class UnifiedMasterService
         ")->getResultArray();
     }
 
+    public function getTotalCollectionsCount(): int
+    {
+        $row = $this->db->query("
+            SELECT COUNT(*) AS cnt
+            FROM (" . $this->getCollectionUnionSql() . ") AS col
+        ")->getRowArray();
+
+        return (int)($row['cnt'] ?? 0);
+    }
+
     // =========================================================================
     // PURITIES (mst_purity + ucc_purity)
     // =========================================================================
@@ -444,6 +454,7 @@ class UnifiedMasterService
                 CONVERT(m.private_key USING utf8mb4) COLLATE utf8mb4_general_ci AS private_key,
                 CONVERT(m.purity_name USING utf8mb4) COLLATE utf8mb4_general_ci AS purity_name,
                 m.purity_value,
+                NULL AS gold_multiplier,
                 CAST(m.purity_status AS CHAR) COLLATE utf8mb4_general_ci AS purity_status,
                 'spiderwaves' AS source
             FROM mst_purity m
@@ -453,6 +464,7 @@ class UnifiedMasterService
                 u.private_key,
                 CONCAT(TRIM(TRAILING '.00' FROM CAST(u.purity AS CHAR)), '%') COLLATE utf8mb4_general_ci AS purity_name,
                 u.purity AS purity_value,
+                u.gold_multiplier,
                 CAST(u.is_active AS CHAR) COLLATE utf8mb4_general_ci AS purity_status,
                 'ucc' AS source
             FROM ucc_purity u

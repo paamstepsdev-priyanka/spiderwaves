@@ -129,6 +129,15 @@ class UccSyncService
             $log("Sync failed with error: " . $e->getMessage());
             throw $e;
         } finally {
+            $pendingFlag = $lockDir . '/ucc_sync_pending.flag';
+            if (is_file($pendingFlag)) {
+                @unlink($pendingFlag);
+            }
+            try {
+                \Config\Services::cache()->delete('ucc_live_status_snapshot');
+            } catch (\Throwable $cacheErr) {
+                // Ignore cache clear failure
+            }
             if ($lockFile) {
                 flock($lockFile, LOCK_UN);
                 fclose($lockFile);

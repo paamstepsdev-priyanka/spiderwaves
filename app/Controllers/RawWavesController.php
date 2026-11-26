@@ -149,6 +149,9 @@ class RawWavesController extends BaseController
         // Active collections
         $data['collection_data'] = $this->collectionModel->getActiveCollections();
 
+        // Active purities from Purity Master
+        $data['active_purities'] = $this->unifiedMasterService->getActivePurities();
+
         $data['title'] = 'Raw Waves Entry';
         return view('raw_waves/index', $data);
     }
@@ -244,6 +247,7 @@ class RawWavesController extends BaseController
             'firm_data'                 => $this->firmModel->getActiveFirms(),
             'remark_data'               => $this->remarkModel->getActiveRemarks(),
             'collection_data'           => $this->collectionModel->getActiveCollections(),
+            'active_purities'           => $this->unifiedMasterService->getActivePurities(),
             'title'                     => 'Edit Raw Wave Entry',
         ];
 

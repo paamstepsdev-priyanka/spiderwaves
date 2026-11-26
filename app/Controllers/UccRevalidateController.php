@@ -10,6 +10,7 @@ use App\Models\UccSyncStateModel;
 use App\Models\UccSyncConflictModel;
 use App\Models\UccSyncCheckLogModel;
 use App\Models\UccMappedCustomerModel;
+use App\Models\UccWebhookLogModel;
 
 class UccRevalidateController extends BaseController
 {
@@ -19,6 +20,7 @@ class UccRevalidateController extends BaseController
     protected UccSyncConflictModel $conflictModel;
     protected UccSyncCheckLogModel $checkLogModel;
     protected UccMappedCustomerModel $mappedCustomerModel;
+    protected UccWebhookLogModel $webhookLogModel;
 
     public function __construct()
     {
@@ -28,6 +30,7 @@ class UccRevalidateController extends BaseController
         $this->conflictModel       = new UccSyncConflictModel();
         $this->checkLogModel       = new UccSyncCheckLogModel();
         $this->mappedCustomerModel = new UccMappedCustomerModel();
+        $this->webhookLogModel     = new UccWebhookLogModel();
     }
 
     /**
@@ -52,7 +55,33 @@ class UccRevalidateController extends BaseController
     }
 
     /**
-     * Revalidate Masters Dashboard view.
+     * Build local webhook + sync status without calling the remote UCC API.
+     */
+    protected function buildLocalStatus(bool $isConfigured): array
+    {
+        $state = $this->stateModel->getState();
+        $recentWebhooks = $this->webhookLogModel->getRecentLogs(20);
+        $latestWebhook = $recentWebhooks[0] ?? null;
+        $pendingCount = $this->webhookLogModel->countPending();
+
+        $entityCounts = [];
+        foreach (UccSyncService::ENTITY_ORDER as $entity) {
+            $model = $this->syncService->getModelForEntity($entity);
+            $entityCounts[$entity] = (int)$model->where('deleted_at IS NULL')->countAllResults();
+        }
+
+        return [
+            'is_configured'   => $isConfigured,
+            'state'           => $state,
+            'entity_counts'   => $entityCounts,
+            'recent_webhooks' => $recentWebhooks,
+            'latest_webhook'  => $latestWebhook,
+            'pending_count'   => $pendingCount,
+        ];
+    }
+
+    /**
+     * Revalidate Masters Dashboard view (local webhook & sync monitor, zero UCC API polling).
      */
     public function index()
     {
@@ -62,26 +91,19 @@ class UccRevalidateController extends BaseController
 
         $client = new UccClient();
         $isConfigured = $client->isConfigured();
+        $local = $this->buildLocalStatus($isConfigured);
 
-        $state = $this->stateModel->getState();
-        $latestLog = $this->checkLogModel->getLatestLog();
         $openConflicts = $this->conflictModel->getOpenConflicts();
         $orphanedReferences = $this->mappedCustomerModel->getOrphanedReferences();
 
-        $latestSummary = null;
-        if (!empty($latestLog['summary_json'])) {
-            $latestSummary = json_decode($latestLog['summary_json'], true);
-        }
-
-        $liveStatus = $this->revalidateService->getLiveStatus(true);
-
         $data = [
-            'title'               => 'Revalidate Masters (UCC)',
+            'title'               => 'UCC Webhook Sync Status',
             'isConfigured'        => $isConfigured,
-            'state'               => $state,
-            'latestLog'           => $latestLog,
-            'latestSummary'       => $latestSummary,
-            'liveStatus'          => $liveStatus,
+            'state'               => $local['state'],
+            'entityCounts'        => $local['entity_counts'],
+            'recentWebhooks'      => $local['recent_webhooks'],
+            'latestWebhook'       => $local['latest_webhook'],
+            'pendingCount'        => $local['pending_count'],
             'openConflicts'       => $openConflicts,
             'orphanedReferences'  => $orphanedReferences,
         ];
@@ -90,7 +112,7 @@ class UccRevalidateController extends BaseController
     }
 
     /**
-     * AJAX endpoint: Lightweight live sync status & pending changes check.
+     * AJAX endpoint: Local webhook & sync status (no remote UCC API calls).
      */
     public function liveStatus(): ResponseInterface
     {
@@ -98,17 +120,24 @@ class UccRevalidateController extends BaseController
             return $redirect;
         }
 
-        $force = (bool)$this->request->getGet('force');
-        $status = $this->revalidateService->getLiveStatus($force);
+        $client = new UccClient();
+        $local = $this->buildLocalStatus($client->isConfigured());
 
         return $this->response->setJSON([
             'status'      => 'success',
-            'live_status' => $status,
+            'live_status' => [
+                'is_configured'  => $local['is_configured'],
+                'local_version'  => $local['state']['last_version'] ?? null,
+                'last_synced_at' => $local['state']['last_synced_at'] ?? null,
+                'last_error'     => $local['state']['last_error'] ?? null,
+                'entity_counts'  => $local['entity_counts'],
+                'latest_webhook' => $local['latest_webhook'],
+            ],
         ]);
     }
 
     /**
-     * AJAX endpoint: Run incremental sync now and refresh revalidation log.
+     * AJAX endpoint: Run manual UCC master sync now and update pending webhook logs.
      */
     public function syncNow(): ResponseInterface
     {
@@ -116,21 +145,40 @@ class UccRevalidateController extends BaseController
             return $redirect;
         }
 
-        $session = session()->get('spider') ?? [];
-        $username = $session['username'] ?? $session['user'] ?? 'Admin';
+        $client = new UccClient();
+        if (!$client->isConfigured()) {
+            return $this->response->setStatusCode(503)->setJSON([
+                'status'  => 'error',
+                'message' => 'UCC API credentials are not configured in .env.',
+            ]);
+        }
+
+        @set_time_limit(120);
 
         try {
             $syncResult = $this->syncService->sync(false);
+            if (($syncResult['status'] ?? '') === 'locked') {
+                return $this->response->setStatusCode(409)->setJSON([
+                    'status'  => 'locked',
+                    'message' => 'Another UCC synchronization is already in progress. Please wait and try again.',
+                ]);
+            }
+
+            $this->webhookLogModel->markAllPendingResult('success', null);
             $this->revalidateService->clearStatusCache();
-            $summary = $this->revalidateService->runCheck($username);
+
+            $msg = (($syncResult['status'] ?? '') === 'noop')
+                ? 'UCC master data is already up to date.'
+                : 'UCC master data synchronized successfully.';
 
             return $this->response->setJSON([
                 'status'      => 'success',
-                'message'     => 'UCC master data synchronized and verified.',
+                'message'     => $msg,
                 'sync_result' => $syncResult,
-                'summary'     => $summary,
             ]);
         } catch (\Throwable $e) {
+            $this->webhookLogModel->markAllPendingResult('failed', $e->getMessage());
+
             return $this->response->setStatusCode(500)->setJSON([
                 'status'  => 'error',
                 'message' => 'Sync failed: ' . $e->getMessage(),

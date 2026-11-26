@@ -116,7 +116,7 @@ class WebhooksController extends ResourceController
             return $this->response->setStatusCode(200)->setJSON($responseBody);
         }
 
-        // Prevent duplicate synchronization if the same master_version is already applied or pending
+        // Prevent duplicate notifications if the same master_version is already applied or pending manual sync
         $verifiedVersion = (string)($responseBody['master_version'] ?? '');
         $stateModel = new UccSyncStateModel();
         $state = $stateModel->getState();
@@ -133,7 +133,7 @@ class WebhooksController extends ResourceController
                 'request_payload'   => $rawBody,
                 'http_status'       => 200,
                 'processing_status' => 'success',
-                'error_details'     => 'Duplicate/already-synced master_version; sync skipped.',
+                'error_details'     => 'Duplicate/already-recorded master_version; skipped.',
                 'received_at'       => $receivedAt,
                 'processed_at'      => date('Y-m-d H:i:s'),
             ]);
@@ -141,7 +141,7 @@ class WebhooksController extends ResourceController
             return $this->response->setStatusCode(200)->setJSON($responseBody);
         }
 
-        // Record valid notification as pending and queue background sync
+        // Record valid notification as Pending Sync (manual Sync Now required; no automatic sync)
         $logId = $this->safeInsertLog($logModel, [
             'source_ip'         => $sourceIp,
             'master_version'    => $verifiedVersion,
@@ -149,7 +149,7 @@ class WebhooksController extends ResourceController
             'request_payload'   => $rawBody,
             'http_status'       => 200,
             'processing_status' => 'pending',
-            'error_details'     => null,
+            'error_details'     => 'Pending manual sync.',
             'received_at'       => $receivedAt,
             'processed_at'      => null,
         ]);
@@ -158,25 +158,16 @@ class WebhooksController extends ResourceController
         if (!is_dir($lockDir)) {
             @mkdir($lockDir, 0755, true);
         }
-
-        $flagData = [
+        file_put_contents($lockDir . '/ucc_sync_pending.flag', json_encode([
             'triggered_at'   => $receivedAt,
             'master_version' => $verifiedVersion,
             'webhook_log_id' => $logId,
-        ];
-        file_put_contents($lockDir . '/ucc_sync_pending.flag', json_encode($flagData));
+        ]));
 
-        // Non-blocking background execution of spark ucc:sync
-        $sparkArg = escapeshellarg(ROOTPATH . 'spark');
-        $logOption = $logId > 0 ? (' --webhook-log=' . $logId) : '';
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            $sparkCmd = 'start /B php ' . $sparkArg . ' ucc:sync' . $logOption . ' > NUL 2>&1';
-            @pclose(@popen($sparkCmd, 'r'));
-        } else {
-            @exec('php ' . $sparkArg . ' ucc:sync' . $logOption . ' > /dev/null 2>&1 &');
-        }
-
-        return $this->response->setStatusCode(200)->setJSON($responseBody);
+        return $this->response->setStatusCode(200)->setJSON(array_merge($responseBody, [
+            'sync_status' => 'pending',
+            'message'     => 'Webhook recorded as Pending Sync. Trigger Sync Now in SpiderWaves to apply.',
+        ]));
     }
 
     /**
