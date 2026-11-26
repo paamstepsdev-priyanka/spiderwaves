@@ -57,6 +57,18 @@
                 </select>
             </div>
 
+            <!-- Sort Dropdown -->
+            <div style="flex: 1; min-width: 140px;">
+                <select name="sort" class="select2" onchange="document.getElementById('customerFilterForm').submit()" style="width: 100%;">
+                    <option value="">Sort: Default</option>
+                    <option value="name_asc" <?= (($sort ?? '') === 'name_asc') ? 'selected' : '' ?>>Name (A-Z)</option>
+                    <option value="name_desc" <?= (($sort ?? '') === 'name_desc') ? 'selected' : '' ?>>Name (Z-A)</option>
+                    <option value="id_desc" <?= (($sort ?? '') === 'id_desc') ? 'selected' : '' ?>>ID (High-Low)</option>
+                    <option value="id_asc" <?= (($sort ?? '') === 'id_asc') ? 'selected' : '' ?>>ID (Low-High)</option>
+                    <option value="status_asc" <?= (($sort ?? '') === 'status_asc') ? 'selected' : '' ?>>Active First</option>
+                </select>
+            </div>
+
             <!-- Search Action Button -->
             <button type="submit" class="sw-btn-primary" style="padding: 10px 18px;">
                 <i class="icon-filter4"></i>
@@ -64,7 +76,7 @@
             </button>
 
             <!-- Reset Button (if filtering active) -->
-            <?php if (!empty($search) || !empty($type) || ($status !== null && $status !== '')): ?>
+            <?php if (!empty($search) || !empty($type) || ($status !== null && $status !== '') || !empty($sort)): ?>
                 <a href="<?= base_url('master/customer') ?>" class="sw-btn-secondary" title="Clear Filters">
                     <i class="icon-cross2"></i>
                     <span>Reset</span>
@@ -81,10 +93,11 @@
             <thead>
                 <tr>
                     <th style="width: 5%; text-align: center;">S.No.</th>
-                    <th style="width: 45%;">Customer Name</th>
-                    <th style="width: 20%;">Type</th>
-                    <th style="width: 15%;">Status</th>
-                    <th style="width: 15%; text-align: center;">Action</th>
+                    <th style="width: 28%;">Customer Name</th>
+                    <th style="width: 27%;">Private Key</th>
+                    <th style="width: 14%;">Type</th>
+                    <th style="width: 13%;">Status</th>
+                    <th style="width: 13%; text-align: center;">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -104,6 +117,11 @@
                             <!-- Customer Name -->
                             <td>
                                 <div class="sw-cust-name"><?= esc($obj['cust_name']) ?></div>
+                            </td>
+
+                            <!-- Private Key -->
+                            <td>
+                                <code style="font-size: 11.5px;"><?= esc($obj['private_key'] ?? '-') ?></code>
                             </td>
 
                             <!-- Type Pill Badge -->
@@ -153,7 +171,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 48px 20px; color: var(--sw-text-muted);">
+                        <td colspan="6" style="text-align: center; padding: 48px 20px; color: var(--sw-text-muted);">
                             <i class="icon-search4" style="font-size: 32px; color: var(--sw-text-subtle); display: block; margin-bottom: 8px;"></i>
                             <div style="font-weight: 600; font-size: 14px;">No customer records found</div>
                             <div style="font-size: 12px; margin-top: 4px;">Try modifying your keyword search or filter criteria</div>

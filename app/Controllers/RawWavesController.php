@@ -12,6 +12,7 @@ use App\Models\RawWavesModel;
 use App\Models\RemarkModel;
 use App\Models\WavesModel;
 use App\Services\LedgerService;
+use App\Services\UnifiedMasterService;
 use App\Services\WastageService;
 use CodeIgniter\HTTP\ResponseInterface;
 
@@ -39,6 +40,7 @@ class RawWavesController extends BaseController
     protected RemarkModel $remarkModel;
     protected FirmModel $firmModel;
     protected LedgerService $ledgerService;
+    protected UnifiedMasterService $unifiedMasterService;
     protected WastageService $wastageService;
     protected $db;
 
@@ -53,6 +55,7 @@ class RawWavesController extends BaseController
         $this->remarkModel          = new RemarkModel();
         $this->firmModel            = new FirmModel();
         $this->ledgerService        = new LedgerService();
+        $this->unifiedMasterService = new UnifiedMasterService();
         $this->wastageService       = new WastageService();
         $this->db                   = \Config\Database::connect();
     }
@@ -100,16 +103,22 @@ class RawWavesController extends BaseController
                 $data['gross_weight']   = $processWave['gross_weight'];
                 $data['mapped_cust_id'] = $processWave['mapped_cust_id'];
 
-                $mappedCust = $this->customerMappingModel->where('mapped_cust_id', $data['mapped_cust_id'])->first();
+                $mappedCust = $this->unifiedMasterService->findMappingById((int) $data['mapped_cust_id']);
                 if ($mappedCust) {
                     $data['selected_mapped_cust_data'] = $mappedCust;
                     $data['purity']                    = !empty($mappedCust['purity']) ? (float)$mappedCust['purity'] : (!empty($processWave['purity']) ? (float)$processWave['purity'] : '');
 
-                    $cust = $this->customerModel->find($mappedCust['cust_id']);
-                    $data['cust_name'] = $cust ? $cust['cust_name'] : '';
+                    $data['cust_name'] = $mappedCust['cust_name'] ?? '';
+                    if (empty($data['cust_name']) && !empty($mappedCust['cust_id'])) {
+                        $cust = $this->unifiedMasterService->findCustomerById((int) $mappedCust['cust_id']);
+                        $data['cust_name'] = $cust ? $cust['cust_name'] : '';
+                    }
 
-                    $coll = $this->collectionModel->find($mappedCust['collection_id']);
-                    $data['collection_name'] = $coll ? $coll['collection_name'] : '';
+                    $data['collection_name'] = $mappedCust['collection_name'] ?? '';
+                    if (empty($data['collection_name']) && !empty($mappedCust['collection_id'])) {
+                        $coll = $this->collectionModel->find($mappedCust['collection_id']);
+                        $data['collection_name'] = $coll ? $coll['collection_name'] : '';
+                    }
 
                     $custWastageModel = new CustomerWastageModel();
                     $wRow = $custWastageModel->where('customer_id', $mappedCust['cust_id'])
@@ -122,25 +131,14 @@ class RawWavesController extends BaseController
 
         // Active mapped customers
         if (!empty($data['mapped_cust_id']) && $data['form_type'] === 'transfer_to_cust') {
-            $data['mapped_cust_data'] = $this->customerMappingModel->where('mapped_cust_status', '1')
-                ->where('mapped_cust_id', $data['mapped_cust_id'])
-                ->findAll();
-            if (empty($data['mapped_cust_data'])) {
-                $data['mapped_cust_data'] = $this->customerMappingModel->where('mapped_cust_status', '1')
-                    ->orderBy('mapped_cust_name', 'ASC')
-                    ->findAll();
-            }
+            $singleMapping = $this->unifiedMasterService->findMappingById((int) $data['mapped_cust_id'], true);
+            $data['mapped_cust_data'] = $singleMapping ? [$singleMapping] : $this->unifiedMasterService->getActiveMappings();
         } else {
-            $data['mapped_cust_data'] = $this->customerMappingModel->where('mapped_cust_status', '1')
-                ->orderBy('mapped_cust_name', 'ASC')
-                ->findAll();
+            $data['mapped_cust_data'] = $this->unifiedMasterService->getActiveMappings();
         }
 
         // Active customers
-        $data['cust_data'] = $this->customerModel->where('cust_status', '1')
-            ->orderBy('type', 'ASC')
-            ->orderBy('cust_name', 'ASC')
-            ->findAll();
+        $data['cust_data'] = $this->unifiedMasterService->getActiveCustomers();
 
         // Active firms
         $data['firm_data'] = $this->firmModel->getActiveFirms();
@@ -184,46 +182,23 @@ class RawWavesController extends BaseController
 
         // 1. Resolve mapped customer by to_id if stored
         if (!empty($rawWave['to_id'])) {
-            $mappedCust = $this->customerMappingModel
-                ->where('mapped_cust_id', (int) $rawWave['to_id'])
-                ->where('mapped_cust_status', '1')
-                ->first();
-            if (!$mappedCust) {
-                // In case status is not 1, still find by PK so edit form displays the assigned mapped customer
-                $mappedCust = $this->customerMappingModel->find((int) $rawWave['to_id']);
-            }
+            $mappedCust = $this->unifiedMasterService->findMappingById((int) $rawWave['to_id'], true)
+                ?? $this->unifiedMasterService->findMappingById((int) $rawWave['to_id']);
         }
 
         // 2. Fallback: resolve using cust_id, collection_id, and purity
         if (!$mappedCust && !empty($rawWave['cust_id'])) {
-            $builder = $this->customerMappingModel
-                ->where('cust_id', (int) $rawWave['cust_id'])
-                ->where('mapped_cust_status', '1');
+            $purityFilter = (isset($rawWave['purity']) && (float) $rawWave['purity'] > 0) ? (float) $rawWave['purity'] : null;
+            $collFilter = !empty($rawWave['collection_id']) ? (int) $rawWave['collection_id'] : null;
 
-            if (!empty($rawWave['collection_id'])) {
-                $builder->where('collection_id', (int) $rawWave['collection_id']);
+            $matches = $this->unifiedMasterService->getActiveMappingsForCustomer((int) $rawWave['cust_id'], $purityFilter, $collFilter);
+            if (empty($matches) && $collFilter) {
+                $matches = $this->unifiedMasterService->getActiveMappingsForCustomer((int) $rawWave['cust_id'], null, $collFilter);
             }
-            if (isset($rawWave['purity']) && (float) $rawWave['purity'] > 0) {
-                $builder->where('purity', (float) $rawWave['purity']);
+            if (empty($matches)) {
+                $matches = $this->unifiedMasterService->getActiveMappingsForCustomer((int) $rawWave['cust_id']);
             }
-            $mappedCust = $builder->first();
-
-            // Match cust_id and collection_id
-            if (!$mappedCust && !empty($rawWave['collection_id'])) {
-                $mappedCust = $this->customerMappingModel
-                    ->where('cust_id', (int) $rawWave['cust_id'])
-                    ->where('collection_id', (int) $rawWave['collection_id'])
-                    ->where('mapped_cust_status', '1')
-                    ->first();
-            }
-
-            // Match cust_id only
-            if (!$mappedCust) {
-                $mappedCust = $this->customerMappingModel
-                    ->where('cust_id', (int) $rawWave['cust_id'])
-                    ->where('mapped_cust_status', '1')
-                    ->first();
-            }
+            $mappedCust = $matches[0] ?? null;
         }
 
         if ($mappedCust) {
@@ -242,14 +217,11 @@ class RawWavesController extends BaseController
 
         $cId = !empty($rawWave['cust_id']) ? $rawWave['cust_id'] : ($mappedCust['cust_id'] ?? null);
         if (!empty($cId)) {
-            $cust = $this->customerModel->find($cId);
+            $cust = $this->unifiedMasterService->findCustomerById((int) $cId);
             $custName = $cust ? $cust['cust_name'] : '';
         }
 
-        $mappedCustData = $this->customerMappingModel
-            ->where('mapped_cust_status', '1')
-            ->orderBy('mapped_cust_name', 'ASC')
-            ->findAll();
+        $mappedCustData = $this->unifiedMasterService->getActiveMappings();
 
         if ($mappedCust && !in_array((string)$mappedCust['mapped_cust_id'], array_column($mappedCustData, 'mapped_cust_id'), true)) {
             $mappedCustData[] = $mappedCust;
@@ -268,7 +240,7 @@ class RawWavesController extends BaseController
             'wastage'                   => $wastage,
             'purity'                    => number_format((float)$rawWave['purity'], 2, '.', ''),
             'mapped_cust_data'          => $mappedCustData,
-            'cust_data'                 => $this->customerModel->where('cust_status', '1')->orderBy('cust_name', 'ASC')->findAll(),
+            'cust_data'                 => $this->unifiedMasterService->getActiveCustomers(),
             'firm_data'                 => $this->firmModel->getActiveFirms(),
             'remark_data'               => $this->remarkModel->getActiveRemarks(),
             'collection_data'           => $this->collectionModel->getActiveCollections(),
@@ -303,7 +275,7 @@ class RawWavesController extends BaseController
         $collectionId = !empty($input['collection_id']) ? (int) $input['collection_id'] : null;
 
         if ($mappedCustId) {
-            $mappedCust = $this->customerMappingModel->find($mappedCustId);
+            $mappedCust = $this->unifiedMasterService->findMappingById((int) $mappedCustId);
             if ($mappedCust) {
                 $custId = (int) $mappedCust['cust_id'];
                 if (!$collectionId) {
@@ -591,7 +563,7 @@ class RawWavesController extends BaseController
 
         if ($voucherData) {
             $custId = $voucherData['cust_id'];
-            $cust = $this->customerModel->find($custId);
+            $cust = $this->unifiedMasterService->findCustomerById((int) $custId);
             $voucherData['customer_name'] = $cust ? $cust['cust_name'] : 'Unknown';
 
             if (!empty($voucherData['collection_id'])) {
@@ -609,33 +581,18 @@ class RawWavesController extends BaseController
             } else {
                 if ($voucherData['transactional_type'] === 'receipt') {
                     if (!empty($voucherData['to_id'])) {
-                        $mappedCustData = $this->customerMappingModel
-                            ->where('mapped_cust_id', (int)$voucherData['to_id'])
-                            ->where('mapped_cust_status', '1')
-                            ->findAll();
+                        $singleMapping = $this->unifiedMasterService->findMappingById((int) $voucherData['to_id'], true);
+                        $mappedCustData = $singleMapping ? [$singleMapping] : [];
                     }
 
                     if (empty($mappedCustData)) {
-                        $builder = $this->customerMappingModel->where('cust_id', $custId)
-                            ->where('mapped_cust_status', '1');
-
-                        if (!empty($voucherData['purity']) && (float)$voucherData['purity'] > 0) {
-                            $builder->where('purity', (float)$voucherData['purity']);
-                        }
-
-                        if (!empty($voucherData['collection_id'])) {
-                            $builder->where('collection_id', (int)$voucherData['collection_id']);
-                        }
-
-                        $mappedCustData = $builder->orderBy('mapped_cust_name', 'ASC')->findAll();
+                        $purityFilter = (!empty($voucherData['purity']) && (float) $voucherData['purity'] > 0) ? (float) $voucherData['purity'] : null;
+                        $collFilter = !empty($voucherData['collection_id']) ? (int) $voucherData['collection_id'] : null;
+                        $mappedCustData = $this->unifiedMasterService->getActiveMappingsForCustomer((int) $custId, $purityFilter, $collFilter);
                     }
 
                     if (empty($mappedCustData)) {
-                        $mappedCustData = $this->customerMappingModel
-                            ->where('cust_id', $custId)
-                            ->where('mapped_cust_status', '1')
-                            ->orderBy('mapped_cust_name', 'ASC')
-                            ->findAll();
+                        $mappedCustData = $this->unifiedMasterService->getActiveMappingsForCustomer((int) $custId);
                     }
                 }
             }
@@ -884,7 +841,7 @@ class RawWavesController extends BaseController
      */
     public function get_customer_wastage_data_by_mapped_customer_id(int $mappedCustomerId): ResponseInterface
     {
-        $mappedCust = $this->customerMappingModel->find($mappedCustomerId);
+        $mappedCust = $this->unifiedMasterService->findMappingById($mappedCustomerId);
         if (!$mappedCust) {
             return $this->response->setBody('0.000');
         }

@@ -240,30 +240,30 @@ $routes->group('master', ['filter' => ['auth', 'role:admin,superadmin']], static
     $routes->get('download_recent_daily_report_file/(:any)', 'MasterController::download_recent_daily_report_file/$1');
     $routes->post('delete_recent_daily_report_file/(:any)', 'MasterController::delete_recent_daily_report_file/$1');
 
-    // Account Master & Department Mapping routes (Superadmin Only)
-    $routes->get('account', 'AccountController::index', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('account/create', 'AccountController::create', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('account/store', 'AccountController::store', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('account/get-process/(:any)', 'AccountController::getProcessData/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('account/edit/(:any)', 'AccountController::edit/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('account/update/(:any)', 'AccountController::update/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->match(['GET', 'POST'], 'account/delete/(:any)', 'AccountController::delete/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('account/mapping/(:any)', 'AccountController::mapping/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('account/update-mapping', 'AccountController::updateMapping', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('account/toggle/(:any)', 'AccountController::toggleStatus/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('account/toggle/(:any)', 'AccountController::toggleStatus/$1', ['filter' => ['auth', 'role:superadmin']]);
+    // Account Master & Department Mapping routes (Superadmin by default, grantable via Permissions)
+    $routes->get('account', 'AccountController::index', ['filter' => ['auth', 'permission:account_master.view']]);
+    $routes->get('account/create', 'AccountController::create', ['filter' => ['auth', 'permission:account_master.create']]);
+    $routes->post('account/store', 'AccountController::store', ['filter' => ['auth', 'permission:account_master.create']]);
+    $routes->get('account/get-process/(:any)', 'AccountController::getProcessData/$1', ['filter' => ['auth', 'permission:account_master.view']]);
+    $routes->get('account/edit/(:any)', 'AccountController::edit/$1', ['filter' => ['auth', 'permission:account_master.edit']]);
+    $routes->post('account/update/(:any)', 'AccountController::update/$1', ['filter' => ['auth', 'permission:account_master.edit']]);
+    $routes->match(['GET', 'POST'], 'account/delete/(:any)', 'AccountController::delete/$1', ['filter' => ['auth', 'permission:account_master.toggle']]);
+    $routes->get('account/mapping/(:any)', 'AccountController::mapping/$1', ['filter' => ['auth', 'permission:account_master.mapping']]);
+    $routes->post('account/update-mapping', 'AccountController::updateMapping', ['filter' => ['auth', 'permission:account_master.mapping']]);
+    $routes->get('account/toggle/(:any)', 'AccountController::toggleStatus/$1', ['filter' => ['auth', 'permission:account_master.toggle']]);
+    $routes->post('account/toggle/(:any)', 'AccountController::toggleStatus/$1', ['filter' => ['auth', 'permission:account_master.toggle']]);
 
     // Backward-compatible CI2/CI3 aliases for Account Master
-    $routes->get('manage_account', 'AccountController::index', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('add_account', 'AccountController::create', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('edit_account/(:any)', 'AccountController::edit/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('insert_account', 'AccountController::insertAccountLegacy', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->get('map_with_account/(:any)', 'AccountController::mapping/$1', ['filter' => ['auth', 'role:superadmin']]);
-    $routes->post('update_mapping_data', 'AccountController::updateMapping', ['filter' => ['auth', 'role:superadmin']]);
+    $routes->get('manage_account', 'AccountController::index', ['filter' => ['auth', 'permission:account_master.view']]);
+    $routes->get('add_account', 'AccountController::create', ['filter' => ['auth', 'permission:account_master.create']]);
+    $routes->get('edit_account/(:any)', 'AccountController::edit/$1', ['filter' => ['auth', 'permission:account_master.edit']]);
+    $routes->post('insert_account', 'AccountController::insertAccountLegacy', ['filter' => ['auth', 'permission:account_master.edit']]);
+    $routes->get('map_with_account/(:any)', 'AccountController::mapping/$1', ['filter' => ['auth', 'permission:account_master.mapping']]);
+    $routes->post('update_mapping_data', 'AccountController::updateMapping', ['filter' => ['auth', 'permission:account_master.mapping']]);
 });
 
-// Top-level direct routes for Account Master (Superadmin Only)
-$routes->group('account', ['filter' => ['auth', 'role:superadmin']], static function (RouteCollection $routes) {
+// Top-level direct routes for Account Master (Superadmin by default, grantable via Permissions)
+$routes->group('account', ['filter' => ['auth', 'permission:account_master.view']], static function (RouteCollection $routes) {
     $routes->get('/', 'AccountController::index');
     $routes->get('create', 'AccountController::create');
     $routes->post('store', 'AccountController::store');

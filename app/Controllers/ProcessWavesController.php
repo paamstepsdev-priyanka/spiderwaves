@@ -10,6 +10,7 @@ use App\Models\CustomerMappingModel;
 use App\Models\CustomerModel;
 use App\Models\PurityModel;
 use App\Services\LedgerService;
+use App\Services\UnifiedMasterService;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -36,6 +37,7 @@ class ProcessWavesController extends BaseController
     protected CustomerModel $customerModel;
     protected PurityModel $purityModel;
     protected LedgerService $ledgerService;
+    protected UnifiedMasterService $unifiedMasterService;
 
     public function __construct()
     {
@@ -46,6 +48,7 @@ class ProcessWavesController extends BaseController
         $this->customerModel        = model(CustomerModel::class);
         $this->purityModel          = model(PurityModel::class);
         $this->ledgerService        = new LedgerService();
+        $this->unifiedMasterService = new UnifiedMasterService();
     }
 
     /**
@@ -246,16 +249,19 @@ class ProcessWavesController extends BaseController
             if ($batch) {
                 $processAccountId = (int) $batch['to_id'];
                 if (!empty($batch['cust_id'])) {
-                    $c = $this->customerModel->find($batch['cust_id']);
+                    $c = $this->unifiedMasterService->findCustomerById((int) $batch['cust_id']);
                     $custName = $c['cust_name'] ?? '';
                 }
                 if (!empty($batch['mapped_cust_id'])) {
-                    $m = $this->customerMappingModel->find($batch['mapped_cust_id']);
+                    $m = $this->unifiedMasterService->findMappingById((int) $batch['mapped_cust_id']);
                     if ($m) {
                         $mappedCustData = [$m];
-                        if (empty($custName)) {
-                            $c = $this->customerModel->find($m['cust_id']);
-                            $custName = $c['cust_name'] ?? '';
+                        if (empty($custName) && !empty($m['cust_id'])) {
+                            $custName = $m['cust_name'] ?? '';
+                            if (empty($custName)) {
+                                $c = $this->unifiedMasterService->findCustomerById((int) $m['cust_id']);
+                                $custName = $c['cust_name'] ?? '';
+                            }
                         }
                     }
                 }
@@ -287,11 +293,8 @@ class ProcessWavesController extends BaseController
         $startDate = $this->ledgerService->getActiveStockPointDate();
         $availableBalance = $this->ledgerService->getAccountNetBalance((int)$processAccountId, null, 'fine', $startDate);
 
-        // Fetch all active mapped customers for dropdown
-        $mappedCustList = $this->customerMappingModel
-            ->where('mapped_cust_status', '1')
-            ->orderBy('mapped_cust_name', 'ASC')
-            ->findAll();
+        // Fetch all active mapped customers for dropdown (mst_cust_mapping + ucc_mapped_customer)
+        $mappedCustList = $this->unifiedMasterService->getActiveMappings();
         $selectedMappedCustId = !empty($batch['mapped_cust_id']) ? (int) $batch['mapped_cust_id'] : null;
 
         $isLocker = ((int)$processAccountId === AccountModel::STOCK_ID || (int)($fromAccount['account_id'] ?? 0) === AccountModel::STOCK_ID);
@@ -611,7 +614,7 @@ class ProcessWavesController extends BaseController
             // Resolve customer ID from mapping
             $custId = null;
             if ($mappedCustId) {
-                $mapping = $this->customerMappingModel->find($mappedCustId);
+                $mapping = $this->unifiedMasterService->findMappingById((int) $mappedCustId);
                 if ($mapping && !empty($mapping['cust_id'])) {
                     $custId = (int) $mapping['cust_id'];
                 }

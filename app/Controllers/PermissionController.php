@@ -89,6 +89,66 @@ class PermissionController extends BaseController
                 'stock.view',
             ],
         ],
+        'masters' => [
+            'key'          => 'masters',
+            'name'         => 'Master',
+            'icon'         => 'icon-gear',
+            'color'        => '#475569',
+            'description'  => 'Loss percentage, remark, recent files, and user master settings',
+            'primary_menu' => 'masters',
+            'primary_perm' => 'loss_percentage.view',
+            'menus'        => ['masters', 'master_loss_percentage', 'master_petty_cash', 'master_remark', 'master_recent_files', 'recent_cust_ledger', 'recent_daily_report', 'master_user'],
+            'permissions'  => [
+                'loss_percentage.view', 'loss_percentage.edit',
+                'petty_cash.view', 'petty_cash.create', 'petty_cash.edit', 'petty_cash.toggle',
+                'remark.view', 'remark.create', 'remark.edit', 'remark.toggle',
+                'recent_files.view', 'recent_files.delete',
+                'user_master.view', 'user_master.create', 'user_master.edit', 'user_master.view_details', 'user_master.toggle',
+            ],
+        ],
+        'system_masters' => [
+            'key'          => 'system_masters',
+            'name'         => 'System Master',
+            'icon'         => 'icon-database',
+            'color'        => '#0ea5e9',
+            'description'  => 'Customer, mapped customer, collection, purity, wastage, and UCC sync',
+            'primary_menu' => 'system_masters',
+            'primary_perm' => 'customer.view',
+            'menus'        => ['system_masters', 'master_customer', 'master_customer_mapping', 'master_collection', 'master_purity', 'master_ucc_wastage', 'master_ucc_revalidate'],
+            'permissions'  => [
+                'customer.view', 'customer.create', 'customer.edit', 'customer.toggle', 'customer.wastage',
+                'customer_mapping.view', 'customer_mapping.create', 'customer_mapping.edit', 'customer_mapping.import', 'customer_mapping.toggle',
+                'collection.view', 'collection.create', 'collection.edit', 'collection.toggle',
+                'purity.view', 'purity.create', 'purity.edit', 'purity.toggle',
+                'revalidate_masters.view',
+            ],
+        ],
+        'account_master' => [
+            'key'          => 'account_master',
+            'name'         => 'Account',
+            'icon'         => 'icon-office',
+            'color'        => '#0f766e',
+            'description'  => 'Production accounts and department mappings (Super Admin by default)',
+            'primary_menu' => 'account_master',
+            'primary_perm' => 'account_master.view',
+            'menus'        => ['account_master'],
+            'permissions'  => [
+                'account_master.view', 'account_master.create', 'account_master.edit', 'account_master.mapping', 'account_master.toggle',
+            ],
+        ],
+        'permission' => [
+            'key'          => 'permission',
+            'name'         => 'Permissions',
+            'icon'         => 'icon-shield-check',
+            'color'        => '#dc2626',
+            'description'  => 'Role and user permission management (Super Admin by default)',
+            'primary_menu' => 'permission_management',
+            'primary_perm' => 'permission.superadmin',
+            'menus'        => ['permission_management'],
+            'permissions'  => [
+                'permission.superadmin',
+            ],
+        ],
     ];
 
     /**
@@ -106,6 +166,7 @@ class PermissionController extends BaseController
         ['code' => 'masters',                'title' => 'Master',                    'icon' => 'icon-gear',             'section' => 'Masters & Reports'],
         ['code' => 'system_masters',         'title' => 'System Master',             'icon' => 'icon-database',         'section' => 'Masters & Reports'],
         ['code' => 'account_master',         'title' => 'Account',                   'icon' => 'icon-office',           'section' => 'Masters & Reports'],
+        ['code' => 'permission_management',  'title' => 'Permissions',               'icon' => 'icon-shield-check',     'section' => 'Masters & Reports'],
         ['code' => 'reports',                'title' => 'Report',                    'icon' => 'icon-file-text',        'section' => 'Masters & Reports'],
     ];
 
@@ -127,7 +188,7 @@ class PermissionController extends BaseController
     {
         $user = $this->permissionService->resolveAuthoritativeUser();
 
-        if (!$user || $user['access_level'] !== 'superadmin') {
+        if (!$user || !$this->permissionService->hasPermission('permission.superadmin', (int)$user['user_id'], $user['access_level'])) {
             if (method_exists($this->request, 'isAJAX') && $this->request->isAJAX()) {
                 return $this->response->setStatusCode(403)->setJSON([
                     'status' => false,
@@ -162,12 +223,11 @@ class PermissionController extends BaseController
     {
         $role = $this->roleModel->find($roleId);
         if ($role && $role['role_key'] === 'superadmin') {
-            return [
-                'waves'  => true,
-                'locker' => true,
-                'loss'   => true,
-                'stock'  => true,
-            ];
+            $allOn = [];
+            foreach (array_keys($this->managedModules) as $modKey) {
+                $allOn[$modKey] = true;
+            }
+            return $allOn;
         }
 
         $grantedKeys = $this->rolePermModel->getGrantedPermissionKeys($roleId);
@@ -358,12 +418,10 @@ class PermissionController extends BaseController
         $currentUserId = (int)session()->get('spider.user_id');
 
         $postedModules = (array)($this->request->getPost('modules') ?? $_POST['modules'] ?? []);
-        $newStates = [
-            'waves'  => !empty($postedModules['waves']),
-            'locker' => !empty($postedModules['locker']),
-            'loss'   => !empty($postedModules['loss']),
-            'stock'  => !empty($postedModules['stock']),
-        ];
+        $newStates = [];
+        foreach (array_keys($this->managedModules) as $modKey) {
+            $newStates[$modKey] = !empty($postedModules[$modKey]);
+        }
 
         // Fetch all menu and permission mappings
         $allMenus = $this->menuModel->findAll();

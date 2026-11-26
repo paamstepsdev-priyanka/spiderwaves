@@ -70,6 +70,7 @@ class PermissionService
         'recent_cust_ledger'      => 'recent_files.view',
         'recent_daily_report'     => 'recent_files.view',
         'master_user'             => 'user_master.view',
+        'master_ucc_wastage'      => ['customer.view', 'revalidate_masters.view'],
         'master_ucc_revalidate'   => ['customer.view', 'revalidate_masters.view'],
         'account_master'          => 'account_master.view',
         'permission_management'   => 'permission.superadmin',

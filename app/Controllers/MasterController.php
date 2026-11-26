@@ -68,10 +68,11 @@ class MasterController extends BaseController
         $search = trim((string)($this->request->getGet('q') ?? ''));
         $type   = trim((string)($this->request->getGet('type') ?? ''));
         $status = $this->request->getGet('status');
+        $sort   = trim((string)($this->request->getGet('sort') ?? ''));
 
         $perPage      = 10;
         $page         = (int)($this->request->getGet('page') ?? 1);
-        $res          = $this->unifiedMasterService->getPaginatedCustomers($perPage, $search, $type, $status, $page);
+        $res          = $this->unifiedMasterService->getPaginatedCustomers($perPage, $search, $type, $status, $page, $sort);
         $customers    = $res['rows'];
         $pager        = $res['pager'];
         $summaryStats = $this->unifiedMasterService->getCustomerSummaryStats();
@@ -83,6 +84,7 @@ class MasterController extends BaseController
             'search'       => $search,
             'type'         => $type,
             'status'       => $status,
+            'sort'         => $sort,
             'summaryStats' => $summaryStats,
         ];
 
@@ -207,6 +209,7 @@ class MasterController extends BaseController
         $custId       = (int)($this->request->getGet('cust_id') ?? 0);
         $collectionId = (int)($this->request->getGet('collection_id') ?? 0);
         $status       = $this->request->getGet('status');
+        $sort         = trim((string)($this->request->getGet('sort') ?? ''));
 
         $perPage      = 10;
         $page         = (int)($this->request->getGet('page') ?? 1);
@@ -216,7 +219,8 @@ class MasterController extends BaseController
             $custId ?: null,
             $collectionId ?: null,
             $status !== null && $status !== '' ? (string)$status : null,
-            $page
+            $page,
+            $sort
         );
         $mappings     = $res['rows'];
         $pager        = $res['pager'];
@@ -233,6 +237,7 @@ class MasterController extends BaseController
             'custId'            => $custId,
             'collectionId'      => $collectionId,
             'status'            => $status,
+            'sort'              => $sort,
             'activeCustomers'   => $activeCustomers,
             'activeCollections' => $activeCollections,
             'summaryStats'      => $summaryStats,
@@ -1191,13 +1196,8 @@ class MasterController extends BaseController
      */
     public function createWastage()
     {
-        $customers   = $this->customerModel->select('cust_id, cust_name')
-            ->where('type', 'cust')
-            ->where('cust_status', '1')
-            ->orderBy('cust_name', 'ASC')
-            ->findAll();
-
-        $collections = $this->collectionModel->getActiveCollections();
+        $customers   = $this->unifiedMasterService->getActiveCustomers('cust');
+        $collections = $this->unifiedMasterService->getActiveCollections();
 
         $data = [
             'title'       => 'Add Customer Wastage Contract',
@@ -1581,8 +1581,7 @@ class MasterController extends BaseController
      */
     public function manage_recent_cust_ledger_file()
     {
-        $customerModel = new \App\Models\CustomerModel();
-        $custData = $customerModel->where('cust_status', '1')->orderBy('cust_name', 'ASC')->findAll();
+        $custData = $this->unifiedMasterService->getActiveCustomers();
         
         $backupDir = WRITEPATH . 'backup/ledger/customer_ledger/';
         $altDir    = FCPATH . 'backup/ledger/customer_ledger/';
@@ -1614,8 +1613,7 @@ class MasterController extends BaseController
     public function download_recent_cust_ledger_file()
     {
         $custId = (int)$this->request->getGet('cust_id');
-        $customerModel = new \App\Models\CustomerModel();
-        $cust = $customerModel->find($custId);
+        $cust = $this->unifiedMasterService->findCustomerById($custId);
         $custName = $cust ? $cust['cust_name'] : 'Customer';
         
         $filePath = WRITEPATH . 'backup/ledger/customer_ledger/' . $custId . '.xls';

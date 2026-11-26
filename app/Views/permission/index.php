@@ -156,7 +156,8 @@
                         $modLocker = !empty($u['modules']['locker']);
                         $modLoss = !empty($u['modules']['loss']);
                         $modStock = !empty($u['modules']['stock']);
-                        $pct = ($u['total_enabled'] / 4) * 100;
+                        $totalMods = max(1, count($managedModules));
+                        $pct = ($u['total_enabled'] / $totalMods) * 100;
                         $displayName = ucwords(strtolower(str_replace('_', ' ', $u['username'])));
                         if ($isSuper) {
                             $displayName = 'Super Admin';
@@ -499,7 +500,7 @@
                             </tr>
 
                             <!-- Stock -->
-                            <tr>
+                            <tr style="border-bottom: 1px solid var(--sw-border);">
                                 <td style="vertical-align: middle;">
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <i class="icon-box text-info" style="font-size: 16px;"></i>
@@ -513,6 +514,82 @@
                                     <div style="display: inline-flex; align-items: center; gap: 8px;">
                                         <input type="checkbox" id="modal_sw_stock" data-mod="stock" class="switchery-role">
                                         <span id="modal_badge_stock" class="sw-pill-badge active" style="min-width: 44px; text-align: center; font-weight: 700; cursor: pointer;">ON</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Master -->
+                            <tr style="border-bottom: 1px solid var(--sw-border);">
+                                <td style="vertical-align: middle;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="icon-gear text-muted" style="font-size: 16px;"></i>
+                                        <span style="font-weight: 700; color: var(--sw-text-main);">Master</span>
+                                    </div>
+                                </td>
+                                <td style="vertical-align: middle; color: var(--sw-text-muted); font-size: 12px;">
+                                    Loss percentage, remark, recent files &amp; user master
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="modal_sw_masters" data-mod="masters" class="switchery-role">
+                                        <span id="modal_badge_masters" class="sw-pill-badge active" style="min-width: 44px; text-align: center; font-weight: 700; cursor: pointer;">ON</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- System Master -->
+                            <tr style="border-bottom: 1px solid var(--sw-border);">
+                                <td style="vertical-align: middle;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="icon-database text-primary" style="font-size: 16px;"></i>
+                                        <span style="font-weight: 700; color: var(--sw-text-main);">System Master</span>
+                                    </div>
+                                </td>
+                                <td style="vertical-align: middle; color: var(--sw-text-muted); font-size: 12px;">
+                                    Customer, mapped customer, collection, purity, wastage &amp; UCC sync
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="modal_sw_system_masters" data-mod="system_masters" class="switchery-role">
+                                        <span id="modal_badge_system_masters" class="sw-pill-badge active" style="min-width: 44px; text-align: center; font-weight: 700; cursor: pointer;">ON</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Account -->
+                            <tr style="border-bottom: 1px solid var(--sw-border);">
+                                <td style="vertical-align: middle;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="icon-office text-success" style="font-size: 16px;"></i>
+                                        <span style="font-weight: 700; color: var(--sw-text-main);">Account</span>
+                                    </div>
+                                </td>
+                                <td style="vertical-align: middle; color: var(--sw-text-muted); font-size: 12px;">
+                                    Production accounts &amp; department mappings (Super Admin default)
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="modal_sw_account_master" data-mod="account_master" class="switchery-role">
+                                        <span id="modal_badge_account_master" class="sw-pill-badge active" style="min-width: 44px; text-align: center; font-weight: 700; cursor: pointer;">ON</span>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Permissions -->
+                            <tr>
+                                <td style="vertical-align: middle;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="icon-shield-check text-danger" style="font-size: 16px;"></i>
+                                        <span style="font-weight: 700; color: var(--sw-text-main);">Permissions</span>
+                                    </div>
+                                </td>
+                                <td style="vertical-align: middle; color: var(--sw-text-muted); font-size: 12px;">
+                                    Role &amp; user permission management (Super Admin default)
+                                </td>
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="modal_sw_permission" data-mod="permission" class="switchery-role">
+                                        <span id="modal_badge_permission" class="sw-pill-badge active" style="min-width: 44px; text-align: center; font-weight: 700; cursor: pointer;">ON</span>
                                     </div>
                                 </td>
                             </tr>
@@ -639,7 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateModalBadge('modalPermBadgeStock', !!u.modules.stock);
 
         var totalPill = document.getElementById('modalTotalEnabledPill');
-        totalPill.textContent = u.total_enabled + ' out of 4 Enabled';
+        totalPill.textContent = u.total_enabled + ' out of <?= count($managedModules) ?> Enabled';
         totalPill.className = 'sw-pill-badge ' + (u.total_enabled >= 3 ? 'active' : (u.total_enabled >= 1 ? 'customer' : 'inactive'));
 
         // Render full sidebar menus breakdown
@@ -858,9 +935,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (totalCell) {
                             var valSpan = totalCell.querySelector('.val-total-perms');
                             var progBar = totalCell.querySelector('.progress-bar');
-                            if (valSpan) valSpan.textContent = totalPermsEnabled + '/4';
+                            if (valSpan) valSpan.textContent = totalPermsEnabled + '/<?= count($managedModules) ?>';
                             if (progBar) {
-                                progBar.style.width = (totalPermsEnabled / 4 * 100) + '%';
+                                progBar.style.width = (totalPermsEnabled / <?= count($managedModules) ?> * 100) + '%';
                                 progBar.className = 'progress-bar ' + (totalPermsEnabled >= 3 ? 'progress-bar-success' : (totalPermsEnabled >= 1 ? 'progress-bar-primary' : 'progress-bar-danger'));
                             }
                         }

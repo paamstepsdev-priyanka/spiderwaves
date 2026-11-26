@@ -83,13 +83,14 @@ class UnifiedMasterService
         ";
     }
 
-    public function getPaginatedCustomers(int $perPage = 10, ?string $search = null, ?string $type = null, ?string $status = null, int $page = 1): array
+    public function getPaginatedCustomers(int $perPage = 10, ?string $search = null, ?string $type = null, ?string $status = null, int $page = 1, string $sort = ''): array
     {
         $where = [];
         $params = [];
 
         if (!empty($search)) {
-            $where[] = "(cust_name LIKE ? OR mobile_no LIKE ?)";
+            $where[] = "(cust_name LIKE ? OR mobile_no LIKE ? OR private_key LIKE ?)";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
@@ -109,7 +110,16 @@ class UnifiedMasterService
             $sql .= " WHERE " . implode(' AND ', $where);
         }
 
-        return $this->paginateUnion($sql, $params, $perPage, "source ASC, cust_id DESC", $page);
+        $orderBy = match ($sort) {
+            'name_asc'   => 'cust_name ASC, cust_id DESC',
+            'name_desc'  => 'cust_name DESC, cust_id DESC',
+            'id_asc'     => 'cust_id ASC, source ASC',
+            'id_desc'    => 'cust_id DESC, source ASC',
+            'status_asc' => 'cust_status DESC, cust_name ASC',
+            default      => 'source ASC, cust_id DESC',
+        };
+
+        return $this->paginateUnion($sql, $params, $perPage, $orderBy, $page);
     }
 
     public function getCustomerSummaryStats(): array
@@ -133,14 +143,52 @@ class UnifiedMasterService
         ];
     }
 
-    public function getActiveCustomers(): array
+    public function getActiveCustomers(?string $type = null): array
     {
+        $where = "WHERE cust_status = '1'";
+        $params = [];
+        if (!empty($type) && in_array($type, ['cust', 'vendor'], true)) {
+            $where .= " AND type = ?";
+            $params[] = $type;
+        }
+
         return $this->db->query("
-            SELECT cust_id, private_key, cust_name, type, source
+            SELECT cust_id, private_key, cust_name, type, mobile_no, source
             FROM (" . $this->getCustomerUnionSql() . ") AS c
-            WHERE cust_status = '1'
+            {$where}
             ORDER BY cust_name ASC
-        ")->getResultArray();
+        ", $params)->getResultArray();
+    }
+
+    public function findCustomerById(int $custId): ?array
+    {
+        $row = $this->db->query("
+            SELECT *
+            FROM (" . $this->getCustomerUnionSql() . ") AS c
+            WHERE cust_id = ?
+            LIMIT 1
+        ", [$custId])->getRowArray();
+
+        return $row ?: null;
+    }
+
+    public function searchActiveCustomers(string $search = '', int $limit = 30): array
+    {
+        $where = "WHERE cust_status = '1'";
+        $params = [];
+        if ($search !== '') {
+            $where .= " AND cust_name LIKE ?";
+            $params[] = "%{$search}%";
+        }
+        $limit = max(1, min(100, $limit));
+
+        return $this->db->query("
+            SELECT cust_id, private_key, cust_name, type, mobile_no, source
+            FROM (" . $this->getCustomerUnionSql() . ") AS c
+            {$where}
+            ORDER BY cust_name ASC
+            LIMIT {$limit}
+        ", $params)->getResultArray();
     }
 
     // =========================================================================
@@ -195,13 +243,15 @@ class UnifiedMasterService
         ?int $custId = null,
         ?int $collectionId = null,
         ?string $status = null,
-        int $page = 1
+        int $page = 1,
+        string $sort = ''
     ): array {
         $where = [];
         $params = [];
 
         if (!empty($search)) {
-            $where[] = "(mapped_cust_name LIKE ? OR cust_name LIKE ?)";
+            $where[] = "(mapped_cust_name LIKE ? OR cust_name LIKE ? OR private_key LIKE ?)";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
@@ -226,7 +276,19 @@ class UnifiedMasterService
             $sql .= " WHERE " . implode(' AND ', $where);
         }
 
-        return $this->paginateUnion($sql, $params, $perPage, "source ASC, mapped_cust_id DESC", $page);
+        $orderBy = match ($sort) {
+            'mapped_asc'  => 'mapped_cust_name ASC, mapped_cust_id DESC',
+            'mapped_desc' => 'mapped_cust_name DESC, mapped_cust_id DESC',
+            'cust_asc'    => 'cust_name ASC, mapped_cust_name ASC',
+            'cust_desc'   => 'cust_name DESC, mapped_cust_name ASC',
+            'purity_asc'  => 'purity ASC, mapped_cust_name ASC',
+            'purity_desc' => 'purity DESC, mapped_cust_name ASC',
+            'id_asc'      => 'mapped_cust_id ASC, source ASC',
+            'id_desc'     => 'mapped_cust_id DESC, source ASC',
+            default       => 'source ASC, mapped_cust_id DESC',
+        };
+
+        return $this->paginateUnion($sql, $params, $perPage, $orderBy, $page);
     }
 
     public function getMappedCustomerSummaryStats(): array
@@ -258,6 +320,46 @@ class UnifiedMasterService
             WHERE mapped_cust_status = '1'
             ORDER BY mapped_cust_name ASC
         ")->getResultArray();
+    }
+
+    public function findMappingById(int $mappedCustId, bool $activeOnly = false): ?array
+    {
+        $where = "WHERE mapped_cust_id = ?";
+        if ($activeOnly) {
+            $where .= " AND mapped_cust_status = '1'";
+        }
+
+        $row = $this->db->query("
+            SELECT *
+            FROM (" . $this->getMappedCustomerUnionSql() . ") AS mc
+            {$where}
+            LIMIT 1
+        ", [$mappedCustId])->getRowArray();
+
+        return $row ?: null;
+    }
+
+    public function getActiveMappingsForCustomer(int $custId, ?float $purity = null, ?int $collectionId = null): array
+    {
+        $where = "WHERE mapped_cust_status = '1' AND cust_id = ?";
+        $params = [$custId];
+
+        if ($purity !== null && $purity > 0) {
+            $where .= " AND purity = ?";
+            $params[] = $purity;
+        }
+
+        if ($collectionId !== null && $collectionId > 0) {
+            $where .= " AND collection_id = ?";
+            $params[] = $collectionId;
+        }
+
+        return $this->db->query("
+            SELECT *
+            FROM (" . $this->getMappedCustomerUnionSql() . ") AS mc
+            {$where}
+            ORDER BY mapped_cust_name ASC
+        ", $params)->getResultArray();
     }
 
     // =========================================================================

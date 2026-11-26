@@ -75,13 +75,28 @@
                 </select>
             </div>
 
+            <!-- Sort Dropdown -->
+            <div style="flex: 1.2; min-width: 145px;">
+                <select name="sort" class="select2" onchange="document.getElementById('mappingFilterForm').submit()" style="width: 100%;">
+                    <option value="">Sort: Default</option>
+                    <option value="mapped_asc" <?= (($sort ?? '') === 'mapped_asc') ? 'selected' : '' ?>>Mapped Name (A-Z)</option>
+                    <option value="mapped_desc" <?= (($sort ?? '') === 'mapped_desc') ? 'selected' : '' ?>>Mapped Name (Z-A)</option>
+                    <option value="cust_asc" <?= (($sort ?? '') === 'cust_asc') ? 'selected' : '' ?>>Customer (A-Z)</option>
+                    <option value="cust_desc" <?= (($sort ?? '') === 'cust_desc') ? 'selected' : '' ?>>Customer (Z-A)</option>
+                    <option value="purity_asc" <?= (($sort ?? '') === 'purity_asc') ? 'selected' : '' ?>>Purity (Low-High)</option>
+                    <option value="purity_desc" <?= (($sort ?? '') === 'purity_desc') ? 'selected' : '' ?>>Purity (High-Low)</option>
+                    <option value="id_desc" <?= (($sort ?? '') === 'id_desc') ? 'selected' : '' ?>>ID (High-Low)</option>
+                    <option value="id_asc" <?= (($sort ?? '') === 'id_asc') ? 'selected' : '' ?>>ID (Low-High)</option>
+                </select>
+            </div>
+
             <!-- Action Buttons -->
             <button type="submit" class="sw-btn-secondary" style="padding: 0 16px;">
                 <i class="icon-filter4"></i>
                 <span>Filter</span>
             </button>
 
-            <?php if (!empty($search) || !empty($custId) || !empty($collectionId) || $status !== null && $status !== ''): ?>
+            <?php if (!empty($search) || !empty($custId) || !empty($collectionId) || ($status !== null && $status !== '') || !empty($sort)): ?>
                 <a href="<?= base_url('master/customer-mapping') ?>" class="sw-btn-secondary" title="Reset Filters" style="color: #64748b; padding: 0 12px;">
                     <i class="icon-cross2"></i>
                 </a>
@@ -104,12 +119,13 @@
             <thead>
                 <tr>
                     <th style="width: 5%; text-align: center;">S.No.</th>
-                    <th style="width: 25%;">Mapped Name</th>
-                    <th style="width: 30%;">Customer Name</th>
-                    <th style="width: 12%; text-align: center;">Purity (%)</th>
-                    <th style="width: 16%;">Collection</th>
-                    <th style="width: 12%; text-align: center;">Status</th>
-                    <th style="width: 10%; text-align: center;">Action</th>
+                    <th style="width: 18%;">Mapped Name</th>
+                    <th style="width: 20%;">Private Key</th>
+                    <th style="width: 19%;">Customer Name</th>
+                    <th style="width: 10%; text-align: center;">Purity (%)</th>
+                    <th style="width: 12%;">Collection</th>
+                    <th style="width: 8%; text-align: center;">Status</th>
+                    <th style="width: 8%; text-align: center;">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -131,6 +147,11 @@
                                 <div style="font-size: 13px; font-weight: 700; color: var(--sw-text-main); line-height: 1.25;">
                                     <?= esc($obj['mapped_cust_name']) ?>
                                 </div>
+                            </td>
+
+                            <!-- Private Key -->
+                            <td>
+                                <code style="font-size: 11px;"><?= esc($obj['private_key'] ?? '-') ?></code>
                             </td>
 
                             <!-- Customer Name -->
@@ -179,7 +200,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 48px 20px;">
+                        <td colspan="8" style="text-align: center; padding: 48px 20px;">
                             <div style="font-size: 36px; color: var(--sw-text-subtle); margin-bottom: 12px;">
                                 <i class="icon-search4"></i>
                             </div>

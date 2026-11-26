@@ -645,11 +645,12 @@ class PermissionSeeder extends Seeder
             foreach ($grantedPermCodes as $pCode) {
                 if (isset($permIdMap[$pCode])) {
                     $db->table('role_permissions')->replace([
-                        'role_id'       => $roleId,
-                        'permission_id' => $permIdMap[$pCode],
-                        'is_granted'    => 1,
-                        'created_at'    => $now,
-                        'updated_at'    => $now,
+                        'role_id'        => $roleId,
+                        'permission_id'  => $permIdMap[$pCode],
+                        'permission_key' => $pCode,
+                        'is_granted'     => 1,
+                        'created_at'     => $now,
+                        'updated_at'     => $now,
                     ]);
                 }
             }

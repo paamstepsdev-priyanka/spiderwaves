@@ -97,6 +97,24 @@ class ProcessWavesModel extends Model
     }
 
     /**
+     * Join both legacy SpiderWaves (mst_*) and UCC (ucc_*) customer/mapping tables.
+     */
+    protected function applyCustomerSelectAndJoins($builder, string $extraSelect = ''): void
+    {
+        $select = 'pw.*, ' .
+            'COALESCE(CONVERT(cm.mapped_cust_name USING utf8mb4) COLLATE utf8mb4_general_ci, ucm.mapped_customer_name) AS mapped_cust_name, ' .
+            'COALESCE(CONVERT(c.cust_name USING utf8mb4) COLLATE utf8mb4_general_ci, uc.customer_name) AS cust_name';
+        if ($extraSelect !== '') {
+            $select .= ', ' . $extraSelect;
+        }
+        $builder->select($select);
+        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
+        $builder->join('ucc_mapped_customer ucm', 'ucm.mapped_customer_id = pw.mapped_cust_id AND ucm.deleted_at IS NULL', 'left');
+        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $builder->join('ucc_customer uc', 'uc.customer_id = pw.cust_id AND uc.deleted_at IS NULL', 'left');
+    }
+
+    /**
      * Get Locker Receipt stock (incoming metal awaiting transfer into workshop).
      * 
      * Legacy condition:
@@ -106,9 +124,7 @@ class ProcessWavesModel extends Model
     {
         $db = \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_from.account_name as from_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_from.account_name as from_name');
         $builder->join('mst_process a_from', 'a_from.account_id = pw.from_id', 'left');
         $builder->where('pw.to_id', 1);
         $builder->where("(pw.date >= '{$startDate}' OR (pw.inner_transfer = '0' OR pw.stock_inner_transfer = '0'))");
@@ -129,9 +145,7 @@ class ProcessWavesModel extends Model
     {
         $db = \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_to.account_name as to_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_to.account_name as to_name');
         $builder->join('mst_process a_to', 'a_to.account_id = pw.to_id', 'left');
         $builder->where('pw.from_id', 1);
         $builder->where('pw.date >=', $startDate);
@@ -152,9 +166,7 @@ class ProcessWavesModel extends Model
     {
         $db = $this->db ?? \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_from.account_name as from_name, a_loss.account_name as loss_account_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_from.account_name as from_name, a_loss.account_name as loss_account_name');
         $builder->join('mst_process a_from', 'a_from.account_id = pw.from_id', 'left');
         $builder->join('mst_process a_loss', 'a_loss.account_id = pw.loss_account_id', 'left');
         $builder->where('pw.to_id', 1);
@@ -198,9 +210,7 @@ class ProcessWavesModel extends Model
     {
         $db = \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_from.account_name as from_name, a_loss.account_name as loss_account_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_from.account_name as from_name, a_loss.account_name as loss_account_name');
         $builder->join('mst_process a_from', 'a_from.account_id = pw.from_id', 'left');
         $builder->join('mst_process a_loss', 'a_loss.account_id = pw.loss_account_id', 'left');
 
@@ -248,9 +258,7 @@ class ProcessWavesModel extends Model
     {
         $db = \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_to.account_name as to_name, a_loss.account_name as loss_account_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_to.account_name as to_name, a_loss.account_name as loss_account_name');
         $builder->join('mst_process a_to', 'a_to.account_id = pw.to_id', 'left');
         $builder->join('mst_process a_loss', 'a_loss.account_id = pw.loss_account_id', 'left');
 
@@ -403,9 +411,7 @@ class ProcessWavesModel extends Model
     {
         $db = \Config\Database::connect();
         $builder = $db->table('process_waves pw');
-        $builder->select('pw.*, cm.mapped_cust_name, c.cust_name, a_from.account_name as from_name, a_to.account_name as to_name');
-        $builder->join('mst_cust_mapping cm', 'cm.mapped_cust_id = pw.mapped_cust_id', 'left');
-        $builder->join('mst_customer c', 'c.cust_id = pw.cust_id', 'left');
+        $this->applyCustomerSelectAndJoins($builder, 'a_from.account_name as from_name, a_to.account_name as to_name');
         $builder->join('mst_process a_from', 'a_from.account_id = pw.from_id', 'left');
         $builder->join('mst_process a_to', 'a_to.account_id = pw.to_id', 'left');
         $builder->where('pw.process_waves_id', $processWavesId);

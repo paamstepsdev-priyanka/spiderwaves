@@ -7,6 +7,7 @@ use App\Models\CustomerModel;
 use App\Models\RemarkModel;
 use App\Models\PurityModel;
 use App\Services\LedgerService;
+use App\Services\UnifiedMasterService;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -22,14 +23,16 @@ class WavesController extends BaseController
     protected RemarkModel $remarkModel;
     protected PurityModel $purityModel;
     protected LedgerService $ledgerService;
+    protected UnifiedMasterService $unifiedMasterService;
 
     public function __construct()
     {
-        $this->wavesModel    = new WavesModel();
-        $this->customerModel = new CustomerModel();
-        $this->remarkModel   = new RemarkModel();
-        $this->purityModel   = new PurityModel();
-        $this->ledgerService = new LedgerService();
+        $this->wavesModel           = new WavesModel();
+        $this->customerModel        = new CustomerModel();
+        $this->remarkModel          = new RemarkModel();
+        $this->purityModel          = new PurityModel();
+        $this->ledgerService        = new LedgerService();
+        $this->unifiedMasterService = new UnifiedMasterService();
     }
 
     /**
@@ -92,9 +95,7 @@ class WavesController extends BaseController
         $stats = $this->wavesModel->getLedgerStats($filters);
 
         // 5. Active customers and remarks for dropdowns
-        $custData = $this->customerModel->where('cust_status', '1')
-            ->orderBy('cust_name', 'ASC')
-            ->findAll();
+        $custData = $this->unifiedMasterService->getActiveCustomers();
 
         $remarkData = $this->remarkModel->where('status', '1')
             ->orderBy('remark', 'ASC')
@@ -143,9 +144,7 @@ class WavesController extends BaseController
 
         $balances = $this->ledgerService->getTotalBalances();
 
-        $custData = $this->customerModel->where('cust_status', '1')
-            ->orderBy('cust_name', 'ASC')
-            ->findAll();
+        $custData = $this->unifiedMasterService->getActiveCustomers();
 
         $remarkData = $this->remarkModel->where('status', '1')
             ->orderBy('remark', 'ASC')
@@ -194,9 +193,7 @@ class WavesController extends BaseController
 
         $balances = $this->ledgerService->getTotalBalances();
 
-        $custData = $this->customerModel->where('cust_status', '1')
-            ->orderBy('cust_name', 'ASC')
-            ->findAll();
+        $custData = $this->unifiedMasterService->getActiveCustomers();
 
         $remarkData = $this->remarkModel->where('status', '1')
             ->orderBy('remark', 'ASC')
@@ -259,7 +256,7 @@ class WavesController extends BaseController
             if (isset($input['wastage']) && (float)$input['wastage'] > 0) {
                 $wastage = (float)$input['wastage'];
             } else {
-                $cust = $this->customerModel->find($custId);
+                $cust = $this->unifiedMasterService->findCustomerById((int)$custId);
                 $wastage = (float)($cust['wastage'] ?? 0);
             }
         }
@@ -340,15 +337,8 @@ class WavesController extends BaseController
     public function get_suggestion_cust_name(): ResponseInterface
     {
         $searchKey = trim((string)($this->request->getGet('search_key') ?? ''));
-        
-        $builder = $this->customerModel->select('cust_id, cust_name')
-            ->where('cust_status', '1');
 
-        if (!empty($searchKey)) {
-            $builder->like('cust_name', $searchKey);
-        }
-
-        $customers = $builder->orderBy('cust_name', 'ASC')->findAll(30);
+        $customers = $this->unifiedMasterService->searchActiveCustomers($searchKey, 30);
 
         $data = [];
         foreach ($customers as $c) {

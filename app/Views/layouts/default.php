@@ -48,7 +48,6 @@
             $lossNavAccounts    = model(\App\Models\AccountModel::class)->getLossNavigationAccounts($accessLevel, $userId);
 
             // Helpers for dynamic menu visibility
-            $showCustomerPortal = ($accessLevel === 'cust') || can_menu('cust_statement', $userId, $accessLevel);
             $showDashboard      = can_menu('main_dashboard', $userId, $accessLevel);
             $showWaves          = can_menu('ops_waves', $userId, $accessLevel);
             $showProcess        = can_menu('ops_process', $userId, $accessLevel) && !empty($processNavAccounts);
@@ -83,19 +82,6 @@
 
                 <!-- Navigation List -->
                 <div class="sw-sidebar-nav">
-                    <?php if ($showCustomerPortal): ?>
-                    <!-- Customer Portal Section -->
-                    <div class="sw-nav-section-title">My Account</div>
-                    <ul class="sw-nav-list">
-                        <li class="sw-nav-item active">
-                            <a href="<?= base_url('report/customer_ledger_for_customer/' . ($sessionData['private_key'] ?? '')) ?>" class="sw-nav-link">
-                                <i class="icon-file-text2"></i>
-                                <span>My Statement</span>
-                            </a>
-                        </li>
-                    </ul>
-                    <?php endif; ?>
-
                     <?php if ($showDashboard): ?>
                     <!-- Main Section -->
                     <div class="sw-nav-section-title">Main</div>
@@ -327,7 +313,7 @@
                                 </li>
                                 <?php endif; ?>
 
-                                <?php if (in_array($accessLevel, ['admin', 'superadmin'], true)): ?>
+                                <?php if (can_menu('master_ucc_wastage', $userId, $accessLevel)): ?>
                                 <li class="sw-nav-item <?= url_is('master/ucc-wastage*') ? 'active' : '' ?>">
                                     <a href="<?= base_url('master/ucc-wastage') ?>" class="sw-nav-link" style="padding: 7px 12px; font-size: 13px;">
                                         <i class="icon-primitive-dot text-muted" style="font-size: 8px; width: 14px;"></i>
@@ -336,7 +322,7 @@
                                 </li>
                                 <?php endif; ?>
 
-                                <?php if (in_array($accessLevel, ['admin', 'superadmin'], true)): ?>
+                                <?php if (can_menu('master_ucc_revalidate', $userId, $accessLevel)): ?>
                                 <li class="sw-nav-item <?= url_is('master/ucc-revalidate*') ? 'active' : '' ?>">
                                     <a href="<?= base_url('master/ucc-revalidate') ?>" class="sw-nav-link" style="padding: 7px 12px; font-size: 13px;">
                                         <i class="icon-primitive-dot text-muted" style="font-size: 8px; width: 14px;"></i>
